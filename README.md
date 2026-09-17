@@ -1,53 +1,87 @@
 # AFNI LLMOps Platform
 
-A reusable, Azure-first **LLMOps platform** and its first onboarded consumer, **APIX** (AFNI Performance Index). The platform provides prompt/model/eval/guardrail/observability/orchestration/serving/feedback as importable libraries; APIX proves reusability by consuming them through thin, fail-open adapters — **without editing any platform source**.
+> A reusable, Azure-first **LLMOps platform** — prompt, model, evaluation,
+> guardrails, observability, orchestration, serving, and feedback as importable
+> libraries — proven by onboarding a real product, **APIX (AFNI Performance
+> Index)**, end to end **without editing a single line of platform source.**
+
+The thesis: LLM products shouldn't each re-implement tracing, cost accounting,
+model routing, guardrails, prompt versioning, and eval gates. They should
+**inherit** them from a shared platform and add only their domain logic. This
+repo is that platform **plus** its first consumer, so the reusability claim is
+demonstrated, not asserted.
 
 ```
-afni-llmops/
-├─ platform/            # reusable LLMOps services (9 libs) + bootstrap.py (PYTHONPATH wiring)
-├─ usecases/apix/       # APIX usecase: ai_pipeline (batch) · application (dashboard) · chatbot (RAG)
-├─ ops-console/         # LLMOps monitoring: FastAPI backend (traces/cost/eval/feedback) + React console
-├─ packages/            # shared React design system + typed API client
-├─ infra/               # Azure Container Apps bicep + deploy.sh
-├─ docs/                # ARCHITECTURE · DATA_CONTRACT · ONBOARDING · RUNBOOK
-├─ .env.example         # ONE consolidated config file — copy to .env, fill in, deploy
-└─ docker-compose.yml   # local all-up
+                         ┌───────────────────────────────────────────────┐
+                         │                 LLMOps PLATFORM                │
+                         │  prompt · model · eval · guardrails ·          │
+                         │  observability · orchestration · serving ·     │
+                         │  feedback     (platform/services/**)           │
+                         └───────────────▲───────────────────────────────┘
+                                         │  imported via PYTHONPATH,
+              thin fail-open adapters    │  configured by YAML — ZERO src edits
+        ┌────────────────┬──────────────┴─────────────┬───────────────────┐
+        │                │                             │                   │
+   ai_pipeline       application                    chatbot          ops-console
+   (batch job)   (FastAPI API + React SPA)      (FastAPI NL→SQL)   (monitoring UI)
+        └──────────── APIX usecase (usecases/apix) ───────┘        reads the traces
+                                                                    every app emits
 ```
+
+## How reusability works
+
+A usecase consumes the platform three ways — **all config or thin adapter, never
+a platform-source edit** (this is the acceptance test):
+
+1. **Import by bare name** after `platform/bootstrap.py` wires the `src` dirs onto
+   `sys.path` — e.g. `from model_management.model_router import resolve`.
+2. **Configure by YAML** — register the usecase in the platform's config files
+   (`models`, `guardrails`, `gates`, `clients`). APIX's blocks live in
+   [`usecases/apix/config/`](usecases/apix/config/).
+3. **Wrap one choke point** — a small `llmops/` adapter around the app's single
+   LLM call adds model-alias resolution, guardrails, tracing + cost, and
+   feedback, all **fail-open** (absent platform ⇒ the app runs unchanged).
+
+Onboard a second usecase by copying [`usecases/apix/`](usecases/) as a template.
 
 ## The platform (`platform/`)
 
-Nine real, tested Python libraries consumed via PYTHONPATH src-layout (import `platform.bootstrap` first, or set `PYTHONPATH`):
+Nine real, tested libraries (see [`platform/README.md`](platform/README.md)):
 
-| Service | Package | Public entry |
+| Service | Package | Entry point |
 |---|---|---|
-| 02 prompt-management | `prompt_management` | `PromptRegistry(...).resolve/.render` |
-| 03 model-management | `model_management` | `resolve(alias, env) -> ModelHandle` |
-| 04 evaluation-gate | `evaluation_gate` | `EvaluationGate(...).run(...)` |
-| 05 observability | `observability` | `Tracer`, `compute_cost(...)` |
-| 06 guardrails | `guardrails` | `build_guardrail(usecase, env)` |
-| 07 data-tools | `data_tools` | `resolve_client_index`, `RetrievalTool` |
-| 08 orchestration | `orchestration` | `Pipeline`, `ModelStep` |
-| 10 serving-hosting | `serving` | `create_app(registry)` |
-| 11 feedback | `feedback` | `FeedbackStore`, `promote_to_golden_dataset` |
+| prompt-management | `prompt_management` | `PromptRegistry.resolve/.render` |
+| model-management | `model_management` | `resolve(alias, env) → ModelHandle` |
+| evaluation-gate | `evaluation_gate` | `EvaluationGate.run(...)` |
+| observability | `observability` | `Tracer`, `compute_cost(...)` |
+| guardrails | `guardrails` | `build_guardrail(usecase, env)` |
+| data-tools | `data_tools` | `resolve_client_index`, `RetrievalTool` |
+| orchestration | `orchestration` | `Pipeline`, `ModelStep` |
+| serving-hosting | `serving` | `create_app(registry)` |
+| feedback | `feedback` | `FeedbackStore`, `promote_to_golden_dataset` |
 
-Services 01/12/14 contribute Azure IaC/policy (harvested into `infra/`). **Reusability acceptance test: zero edits to `platform/services/**/src`.**
+## Repository map
 
-## APIX usecase (`usecases/apix/`)
+| Folder | What it is |
+|---|---|
+| [`platform/`](platform/) | The reusable LLMOps libraries + `bootstrap.py`. **Never edited by a usecase.** |
+| [`usecases/`](usecases/) | Onboarded products. Today: [`apix/`](usecases/apix/) — three apps sharing one data contract. |
+| [`ops-console/`](ops-console/) | LLMOps monitoring: a FastAPI backend over the trace/cost/eval/feedback sinks + a React console. |
+| [`infra/`](infra/) | Azure Container Apps deployment — bicep + `deploy.sh`. |
+| [`docs/`](docs/) | Cross-cutting docs — start with [`RUNBOOK.md`](docs/RUNBOOK.md). |
+| `.env.example` | One consolidated config file (tagged REQUIRED / OPTIONAL / MUST-MATCH). |
+| `docker-compose.yml` | Local all-up: every service against one `.env`. |
 
-Three apps sharing one Azure data contract (pipeline writes weekly per-employee JSON to Blob → dashboard reads it → chatbot ingests it to SQLite):
+## Quick start
 
-- **`ai_pipeline/`** — batch CLI (`denoise → analysis → summary → individual_metrics → kpi`). Deploys as a Container Apps **Job**.
-- **`application/`** — the stakeholder dashboard: `api/` (FastAPI over the in-process backend) + `web/` (React SPA). Deploys as Container **Apps**.
-- **`chatbot/`** — FastAPI NL→SQL→NL analytics assistant. Deploys as a Container **App** + ingestion **Job**.
+```bash
+cp .env.example .env            # fill in Azure creds
+docker compose up --build       # dashboard :5173 · ops console :8080
+docker compose --profile jobs run --rm pipeline --mode telesales --date 2025-08-28
+```
 
-Each app is wired to the platform at its single LLM choke point via a local `llmops/` adapter (model alias resolution, guardrails, prompt overrides, tracing + cost, feedback), all fail-open.
+Then open the ops console — it shows live cost, tokens, latency, guardrail
+decisions, and evals for **every** LLM call across all three APIX apps.
 
-## Quick start (local)
-
-1. `cp .env.example .env` and fill in the values (see the file for what's REQUIRED vs OPTIONAL and what MUST MATCH across services).
-2. `docker compose up` — boots the pipeline (one-shot), chatbot, dashboard api+web, and the ops console against the one `.env`.
-3. Open the dashboard (`web`) and the ops console; run a pipeline batch and watch traces/cost appear in the console.
-
-## Deploy (Azure Container Apps)
-
-`cd infra && ./deploy.sh dev` — builds each image in ACR and applies the bicep. Secrets come from Key Vault via a managed identity; env vars from the bicep params sourced from your `.env`. See `docs/RUNBOOK.md`.
+Deploy to Azure: `./infra/deploy.sh dev <resource-group> <acr-name>`. Full
+walkthrough in [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
