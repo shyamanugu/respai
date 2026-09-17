@@ -1,0 +1,10 @@
+# The dashboard API imports the existing Streamlit backend in-process, so it
+# needs the app's own dependencies too. Install BOTH:
+#     pip install -r ../requirements.txt -r requirements.txt
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.9.0
+PyJWT>=2.9.0        # session cookie + chat-token
+msal>=1.28.0        # Entra SSO confidential client
+# cachetools available if you later add server-side TTL caching of blob reads.
+cachetools>=5.3.0

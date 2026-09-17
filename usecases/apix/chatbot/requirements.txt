@@ -1,0 +1,31 @@
+# APIX Chatbot — runtime dependencies (deployment)
+# Derived from a full parse of every import in chatbot/**/*.py (including lazy
+# imports such as `pyodbc` in sources/azure_source.py and `azure.*` in
+# core/sessions.py & ingestion/jobs.py). Only third-party libraries that the
+# code actually imports are pinned; the rest of the imports are Python stdlib.
+# Transitive deps (httpx, anyio, starlette, etc.) are resolved by pip.
+
+# --- Web / API layer (fastapi, CORS, responses, APIRouter, HTTPException) ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0          # ASGI server used to run chatbot.main:app
+pydantic>=2.9.2                    # core/schemas.py, ingestion/jobs.py models
+
+# --- LLM client (llm/client.py: AsyncOpenAI + error types) ---
+openai>=2.32.0
+
+# --- Orchestration (orchestration/graph.py: StateGraph, END) ---
+langgraph>=1.2.0
+
+# --- Azure: blob session store + blob ingestion + AAD auth ---
+azure-storage-blob>=12.28.0        # core/sessions.py, ingestion/jobs.py
+azure-identity>=1.25.0             # sources/azure_source.py DefaultAzureCredential
+azure-core>=1.39.0                 # azure.core.exceptions used in core/sessions.py
+
+# --- Azure SQL driver (pyodbc — needs ODBC Driver 18, installed in the image) ---
+pyodbc>=5.3.0                      # sources/azure_source.py (lazy import)
+
+# --- Config / env (dotenv in core/config.py, ingestion/jobs.py) ---
+python-dotenv>=1.2.1
+
+# --- API authentication (core/auth.py: bearer JWT validation) ---
+PyJWT>=2.9.0

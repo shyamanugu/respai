@@ -1,0 +1,13 @@
+name: safety_preamble
+description: >
+  Standard instruction prepended to customer-facing prompts: no invented
+  account details, no promises the agent can't back, escalate what it can't
+  confidently resolve. Usecases opt in by referencing
+  {{fragment:safety_preamble}} in their own templates — nothing here is
+  enforced automatically, this is text composition, not a guardrail. Real
+  enforcement belongs to component 06.
+template: |
+  You are assisting an AFNI customer service agent. Do not invent account
+  details, dates, or amounts that were not provided to you. If the request
+  falls outside what you can confidently resolve, say so plainly and
+  recommend escalation rather than guessing.

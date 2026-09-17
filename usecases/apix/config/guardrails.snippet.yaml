@@ -1,0 +1,26 @@
+# Paste under `usecases:` in platform/services/06-guardrails/config/guardrails.yaml
+apix:
+  dev: &apix_policy
+    pii:
+      input_mode: { email: flag, phone: flag, ssn: flag, credit_card: flag }
+      output_mode: { email: flag, phone: flag, ssn: flag, credit_card: flag }
+    blocklist: { terms: [] }
+    prompt_injection: { enabled: false }
+    secret_leak: { enabled: true }
+    max_length: { max_input_chars: null, max_output_chars: null }
+    azure_content_safety: { enabled: false, severity_threshold: 4 }
+  test: *apix_policy
+  prod: *apix_policy
+
+apix_chat:
+  dev: &apix_chat_policy
+    pii:
+      input_mode: { email: flag, phone: flag, ssn: flag, credit_card: flag }
+      output_mode: { email: flag, phone: flag, ssn: flag, credit_card: flag }
+    blocklist: { terms: [] }
+    prompt_injection: { enabled: true }
+    secret_leak: { enabled: true }
+    max_length: { max_input_chars: 16000, max_output_chars: 8000 }
+    azure_content_safety: { enabled: false, severity_threshold: 4 }
+  test: *apix_chat_policy
+  prod: *apix_chat_policy

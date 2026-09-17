@@ -1,0 +1,5 @@
+Hello {display}! 👋 Welcome back, {role_label}.
+
+I'm APIX Insight — ready to help you with your team's performance metrics, coaching recommendations, escalation analysis, and more.
+
+What would you like to know about your team today?

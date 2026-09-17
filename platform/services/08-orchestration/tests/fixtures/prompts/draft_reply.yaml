@@ -1,0 +1,7 @@
+name: draft_reply
+version: 1
+description: Demo prompt proving ModelStep can resolve via Prompt Management (02) instead of a raw string
+model_capability: reason
+input_variables: [sentiment]
+template: |
+  The sentiment was {sentiment}. Write a one-line reply.

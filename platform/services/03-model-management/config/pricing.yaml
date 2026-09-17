@@ -1,0 +1,27 @@
+# Cost per 1,000 tokens, in USD. Consumed by Observability (component 05) to compute
+# app.cost_usd per model-call span — this is the single source of truth for pricing.
+#
+# NOTE: figures below are ILLUSTRATIVE placeholders for demo/presentation so cost
+# never shows a misleading $0. Replace with AFNI's confirmed Azure OpenAI rates.
+deployments:
+  gpt-4o:
+    input_per_1k: 0.0050
+    output_per_1k: 0.0150
+  gpt-4o-mini:
+    input_per_1k: 0.00015
+    output_per_1k: 0.00060
+  gpt-5.4-nano:
+    input_per_1k: 0.00020
+    output_per_1k: 0.00080
+  gpt-5-mini:
+    input_per_1k: 0.00040
+    output_per_1k: 0.00160
+  gpt-4.1:
+    input_per_1k: 0.00200
+    output_per_1k: 0.00800
+  o3-mini:
+    input_per_1k: 0.00110
+    output_per_1k: 0.00440
+  text-embedding-3-large:
+    input_per_1k: 0.00013
+    output_per_1k: 0.0

@@ -1,0 +1,10 @@
+# APIX does NOT add new aliases — it reuses the shared aliases already in
+# platform/services/03-model-management/config/models.yaml:
+#
+#   reason:  { provider: azure_openai, deployment: null, kind: chat }   # fail-open -> REASONING_MODEL_DEPLOYMENT
+#   bulk:    { provider: azure_openai, deployment: null, kind: chat }   # fail-open -> REASONING_MODEL_DEPLOYMENT
+#   judge:   { provider: azure_openai, deployment: gpt-4o-mini, kind: chat }
+#
+# To activate registry-driven model selection for APIX, set real deployment
+# names on `reason`/`bulk` here and matching rates in pricing.yaml. Until then
+# the per-app llmops adapters fall back to the REASONING_MODEL_* env values.

@@ -1,0 +1,9 @@
+fastapi>=0.110
+uvicorn>=0.29
+httpx>=0.27
+pytest>=8.0
+
+# This component imports orchestration directly via pythonpath (see ADR 0004
+# and pytest.ini) rather than as a packaged dependency — its transitive
+# requirements need to be installed in the same environment too.
+-r ../08-orchestration/requirements.txt

@@ -1,0 +1,19 @@
+# Streamlit theme configuration
+# Forces light mode as default with proper color contrast
+
+[theme]
+base = "light"
+primaryColor = "#1e40af"
+backgroundColor = "#f8fafc"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#0f172a"
+
+# Widget styling
+borderColor = "#e2e8f0"
+showWidgetBorder = true
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

@@ -1,0 +1,238 @@
+{
+  "users": [
+    {
+      "name": "Simon Anthony Chan",
+      "employee_id": 9007734,
+      "program": "VZW Telesales",
+      "role": "manager",
+      "upns": [
+        "simonanthonychan@afni.com"
+      ],
+      "coach_ids": [9007102, 9014401]
+    },
+    {
+      "name": "Gerald Jimenez",
+      "employee_id": 9000150,
+      "program": "VZW Telesales",
+      "role": "manager",
+      "upns": [
+        "geraldjimenez@managers.blmtelesales.afni.com"
+      ],
+      "coach_ids": [9007102, 9014401]
+    },
+    {
+      "name": "Ram Fazal",
+      "employee_id": 9027750,
+      "program": "VZW Telesales",
+      "role": "manager",
+      "upns": [
+        "KhuramShazadFazal@Managers.BLMTelesales.Afni.com",
+        "ClydeLesterLucero@Afni.com"
+      ],
+      "coach_ids": [9007102, 9014401]
+    },
+    {
+      "name": "Maria Crispina Tuason",
+      "employee_id": 9014401,
+      "program": "VZW Telesales",
+      "role": "coach",
+      "upns": [
+        "MaCrispinaTuason@Leadership.BLMTelesales.Afni.com"
+      ]
+    },
+    {
+      "name": "Paula Joy Fabila",
+      "employee_id": 9007102,
+      "program": "VZW Telesales",
+      "role": "coach",
+      "upns": [
+        "PaulaJoyFabila@Leadership.BLMTelesales.Afni.com"
+      ]
+    },
+    {
+      "name": "Jenisus Mercado",
+      "employee_id": 9046297,
+      "program": "BBV Voice",
+      "role": "manager",
+      "upns": [
+        "JenisusMercado@Managers.BGCO.Afni.com"
+      ],
+      "coach_ids": [9050895, 9040400, 9040352, 9049922]
+    },
+    {
+      "name": "Mark Lester Perez",
+      "employee_id": 9050895,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "MarkLesterPerez@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Elvin Balawat",
+      "employee_id": 9040400,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "ElvinBalawat@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Kyle Rainier Inalgan",
+      "employee_id": 9040352,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "KyleRainierInalgan@Leadership.BGCO.Afni.com",
+        "RonaldoMedina@Afni.com"
+      ]
+    },
+    {
+      "name": "Lovely Ed Lorine Reyta",
+      "employee_id": 9049922,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "LovelyEdLorineReyta@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Joseph Manalastas",
+      "employee_id": 9006565,
+      "program": "BBV Voice",
+      "role": "manager",
+      "upns": [
+        "JosephManalastas@Managers.BGCO.Afni.com"
+      ],
+      "coach_ids": [9025447, 9039359, 9047615, 9028691]
+    },
+    {
+      "name": "Michael Martin Corpuz",
+      "employee_id": 9025447,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "MichaelMartinCorpuz@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Garry Jasper Hugo",
+      "employee_id": 9039359,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "GarryJasperHugo@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Lawrence Lloyd Buenaventura",
+      "employee_id": 9047615,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "LBuenaventura@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Rochee Joy Magpantay",
+      "employee_id": 9028691,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "RocheeJoyMagpantay@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Ana Montemayor",
+      "employee_id": 3001676,
+      "program": "BBV Voice",
+      "role": "manager",
+      "upns": [
+        "AnaMontemayor@Managers.MTYBGCO.Afni.com"
+      ],
+      "coach_ids": [3000510, 3000720, 3000658, 3000508]
+    },
+    {
+      "name": "Ismael Rodriguez",
+      "employee_id": 3000510,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "IsmaelRodriguez@Leadership.MTYBGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Jessica Jimenez",
+      "employee_id": 3000720,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "JessicaJimenez@Leadership.MTYBGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Andres Ramirez",
+      "employee_id": 3000658,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "AndresRamirez@Leadership.MTYBGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Monica Fuentes",
+      "employee_id": 3000508,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "MonicaFuentes@Leadership.MTYBGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Allie Jane De Ocampo",
+      "employee_id": 9041301,
+      "program": "BBV Voice",
+      "role": "manager",
+      "upns": [
+        "AllieJaneDeOcampo@Managers.BGCO.Afni.com"
+      ],
+      "coach_ids": [9022739, 9033640, 9042107, 9023442]
+    },
+    {
+      "name": "Eloisa Cruz",
+      "employee_id": 9022739,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "EloisaCruz@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Queenny Mae Gerono",
+      "employee_id": 9033640,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "QueennyMaeGerono@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Sherwin Ilao",
+      "employee_id": 9042107,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "SherwinIlao@Leadership.BGCO.Afni.com"
+      ]
+    },
+    {
+      "name": "Roland Monteras",
+      "employee_id": 9023442,
+      "program": "BBV Voice",
+      "role": "coach",
+      "upns": [
+        "RolandMonteras@Leadership.BGCO.Afni.com"
+      ]
+    }
+  ]
+}

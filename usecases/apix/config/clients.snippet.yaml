@@ -1,0 +1,9 @@
+# Paste under each environment's `clients:` in
+# platform/services/07-data-tools/config/clients.yaml
+# (APIX uses NL->SQL today; this index is reserved for future RAG.)
+# dev:
+apix: { index_name: apix-index-dev }
+# test:
+#   apix: { index_name: apix-index-test }
+# prod:
+#   apix: { index_name: apix-index-prod }

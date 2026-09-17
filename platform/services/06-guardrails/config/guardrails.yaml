@@ -1,0 +1,81 @@
+# Per-usecase, per-environment guardrail policy. A usecase not listed here
+# gets the `defaults` block. This is the reusability mechanism: onboarding a
+# new usecase's guardrail policy is a config entry, not a code change — same
+# shape as every other component in this platform. See
+# docs/decisions/0009-guardrails-scope.md.
+
+defaults:
+  pii:
+    # Per-category mode: block | flag | off. Unlisted categories fall back to
+    # the directional default (flag on input, block on output).
+    input_mode: {}
+    output_mode: {}
+  blocklist:
+    terms: []
+  prompt_injection:
+    enabled: true
+  secret_leak:
+    enabled: true
+  max_length:
+    max_input_chars: null
+    max_output_chars: null
+  azure_content_safety:
+    # Off by default — requires AZURE_CONTENT_SAFETY_ENDPOINT/API_KEY and a
+    # provisioned resource.
+    enabled: false
+    severity_threshold: 4
+
+usecases:
+  # ── apix (AFNI Performance Index — batch pipeline + dashboard coaching) ─────
+  # Inputs are recorded customer call transcripts; outputs are per-call
+  # analytics and coaching. Transcripts legitimately contain customer PII, so
+  # PII is *flagged* (recorded on the trace for compliance visibility) but NEVER
+  # blocked — blocking would silently drop analyzed calls and corrupt the
+  # dataset. Genuine secret leaks (API keys, tokens) ARE blocked. Prompt
+  # injection is disabled: these are internal transcripts, not adversarial agent
+  # input, and the detector would false-positive on ordinary speech ("ignore
+  # that…") and drop legitimate calls.
+  apix:
+    dev: &apix_policy
+      pii:
+        input_mode: { email: flag, phone: flag, ssn: flag, credit_card: flag }
+        output_mode: { email: flag, phone: flag, ssn: flag, credit_card: flag }
+      blocklist:
+        terms: []
+      prompt_injection:
+        enabled: false
+      secret_leak:
+        enabled: true
+      max_length:
+        max_input_chars: null
+        max_output_chars: null
+      azure_content_safety:
+        enabled: false
+        severity_threshold: 4
+    test: *apix_policy
+    prod: *apix_policy
+
+  # ── apix_chat (APIX conversational assistant — user-facing) ─────────────────
+  # The chatbot takes free-form user questions, so prompt injection IS enabled
+  # here (unlike the batch pipeline). PII is flagged (users may reference reps by
+  # detail), secrets are blocked, and a max output length caps runaway
+  # generations.
+  apix_chat:
+    dev: &apix_chat_policy
+      pii:
+        input_mode: { email: flag, phone: flag, ssn: flag, credit_card: flag }
+        output_mode: { email: flag, phone: flag, ssn: flag, credit_card: flag }
+      blocklist:
+        terms: []
+      prompt_injection:
+        enabled: true
+      secret_leak:
+        enabled: true
+      max_length:
+        max_input_chars: 16000
+        max_output_chars: 8000
+      azure_content_safety:
+        enabled: false
+        severity_threshold: 4
+    test: *apix_chat_policy
+    prod: *apix_chat_policy

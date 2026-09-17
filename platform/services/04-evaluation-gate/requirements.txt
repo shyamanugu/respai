@@ -1,0 +1,8 @@
+pyyaml>=6.0
+jsonschema>=4.20
+pytest>=8.0
+
+# This component imports model_management directly via pythonpath (see ADR 0004
+# and pytest.ini) rather than as a packaged dependency — its requirements need
+# to be installed in the same environment too.
+-r ../03-model-management/requirements.txt

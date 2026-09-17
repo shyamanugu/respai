@@ -1,0 +1,11 @@
+pytest>=8.0
+
+# This component imports model_management, prompt_management, data_tools,
+# guardrails, and observability directly via pythonpath (see ADR 0004 and
+# pytest.ini) rather than as packaged dependencies — their requirements need
+# to be installed in the same environment too.
+-r ../03-model-management/requirements.txt
+-r ../02-prompt-management/requirements.txt
+-r ../07-data-tools/requirements.txt
+-r ../06-guardrails/requirements.txt
+-r ../05-observability/requirements.txt

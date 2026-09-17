@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai_pipeline"
+version = "1.0.0"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["ai_pipeline", "ai_pipeline.programs_config", "ai_pipeline.programs_config.base", "ai_pipeline.programs_config.telesales", "ai_pipeline.programs_config.wcc", "ai_pipeline.programs_config.pso", "ai_pipeline.services", "ai_pipeline.steps", "ai_pipeline.utils"]
+
+[tool.setuptools.package-dir]
+ai_pipeline = "."

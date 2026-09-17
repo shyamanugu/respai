@@ -1,0 +1,28 @@
+# Per-usecase, per-environment pass threshold. A usecase not listed here
+# uses the platform default (100% — every golden-dataset case must pass; see
+# docs/decisions/0008-evaluation-gate-scope.md).
+
+usecases:
+  # ── apix (AFNI Performance Index) ───────────────────────────────────────────
+  # L1 call-level analysis is the real golden set (SchemaEvaluator for the
+  # structured analysis / individual_metrics fields; LLMJudge for denoise /
+  # summary reflection). Aggregation math (KPI CSVs) is validated by unit tests,
+  # not golden data. Tighten thresholds as coverage grows.
+  apix:
+    dev:
+      pass_threshold: 0.8
+    test:
+      pass_threshold: 0.9
+    prod:
+      pass_threshold: 1.0
+
+  # ── apix_chat (conversational assistant) ────────────────────────────────────
+  # NL→SQL→NL answers judged by rubric (LLMJudge); exact-match where the answer
+  # is a deterministic figure.
+  apix_chat:
+    dev:
+      pass_threshold: 0.8
+    test:
+      pass_threshold: 0.9
+    prod:
+      pass_threshold: 1.0

@@ -1,0 +1,28 @@
+[project]
+name = "afni-llmops"
+version = "0.1.0"
+description = "AFNI in-house LLMOps platform with APIX (AFNI Performance Index) as its first onboarded usecase"
+requires-python = ">=3.11"
+
+# NOTE: The platform is consumed via PYTHONPATH src-layout (see platform/bootstrap.py),
+# NOT as an installable wheel. This project file only centralises tooling config
+# (ruff, pytest) for the whole monorepo. Each app keeps its own requirements.txt.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Vendored platform service src trees are third-party-style code we do NOT edit.
+extend-exclude = [
+    "platform/services",
+    "**/node_modules",
+    "**/.venv",
+    "**/dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["usecases", "ops-console"]

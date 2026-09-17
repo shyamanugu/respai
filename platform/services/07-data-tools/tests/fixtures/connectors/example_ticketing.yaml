@@ -1,0 +1,11 @@
+name: get_ticket
+description: >
+  Demo connector standing in for a usecase's own ticketing-system config —
+  proves HttpApiTool works from any YAML file handed to it, not just
+  something this component authored.
+base_url: https://example-ticketing.invalid
+path_template: /tickets/{ticket_id}
+method: GET
+auth_header_name: Authorization
+auth_header_env_var: EXAMPLE_TICKETING_TOKEN
+timeout_seconds: 10

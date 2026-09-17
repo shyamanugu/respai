@@ -1,0 +1,14 @@
+# Per-environment tracer selection. `null` and `memory` need no Azure resource;
+# `azure_monitor` requires APPLICATIONINSIGHTS_CONNECTION_STRING in .env.local
+# and a provisioned Log Analytics workspace + Application Insights resource.
+# This file is read by whatever wires a usecase's pipeline together — it is
+# not consumed automatically by Orchestration itself, since ModelStep/Pipeline
+# accept a `tracer` instance directly (see docs/decisions/0010-observability-scope.md).
+
+environments:
+  dev:
+    tracer: memory
+  test:
+    tracer: memory
+  prod:
+    tracer: azure_monitor

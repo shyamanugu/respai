@@ -1,0 +1,18 @@
+name: classify_sentiment
+version: 1
+description: >
+  Demo prompt standing in for a usecase's own prompt folder. It lives under
+  tests/fixtures here only to prove the registry works against a directory
+  it doesn't own — a real usecase keeps a folder like this in its own repo,
+  not inside this component.
+model_capability: nano
+input_variables: [message]
+template: |
+  {{fragment:safety_preamble}}
+
+  Classify the sentiment of the following customer message as positive,
+  negative, or neutral.
+
+  Message: {message}
+
+  {{fragment:json_output_instruction}}

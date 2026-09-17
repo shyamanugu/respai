@@ -1,0 +1,51 @@
+# Version control
+.git/
+.gitignore
+
+# Virtual environment
+.venv/
+venv/
+app-venv/
+env/
+
+# Environment secrets (injected at runtime via --env-file)
+.env
+.env.example
+
+# Streamlit secrets (must not be baked into image)
+.streamlit/secrets.toml
+
+# Non-runtime files
+archive/
+docs/
+samples/
+logs/
+.agents/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Misc
+README.md
+appsettings.json
+skills-lock.json
+
+# Azure debug artifacts
+webapp-logs*/
+webapp-logs*.zip
+appsettings*.json
+sitecontainer*.json

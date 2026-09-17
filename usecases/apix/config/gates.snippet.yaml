@@ -1,0 +1,10 @@
+# Paste under `usecases:` in platform/services/04-evaluation-gate/config/gates.yaml
+apix:
+  dev:  { pass_threshold: 0.8 }
+  test: { pass_threshold: 0.9 }
+  prod: { pass_threshold: 1.0 }
+
+apix_chat:
+  dev:  { pass_threshold: 0.8 }
+  test: { pass_threshold: 0.9 }
+  prod: { pass_threshold: 1.0 }

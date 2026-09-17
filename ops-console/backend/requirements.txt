@@ -1,0 +1,7 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.9.0
+# SQLite is stdlib. The platform (for /api/feedback/promote and /api/prompts) is
+# consumed via PYTHONPATH src-layout — set LLMOPS_PLATFORM_ROOT or rely on the
+# walk-up to platform/bootstrap.py. It needs pyyaml (pulled in by the platform).
+pyyaml>=6.0

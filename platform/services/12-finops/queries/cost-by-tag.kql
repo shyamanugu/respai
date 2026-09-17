@@ -1,0 +1,14 @@
+// Reference query, not verified against live data — no cost export has run
+// yet (nothing in this component is deployed). Adapt once
+// cost-export.bicep's CSV lands somewhere queryable (e.g. ingested into the
+// Log Analytics workspace from component 05, or loaded into a query tool
+// that reads the export container directly). Column names below match the
+// documented Cost Management export schema at time of writing; verify
+// against the first real export before trusting this as-is.
+//
+// Intent: cost broken down by the businessUnit tag (reserved for per-client
+// cost separation, see 01-repo-foundation/README.md's tagging schema) and
+// by resource, over the exported time range.
+CostExport_CL
+| summarize TotalCostUsd = sum(CostInBillingCurrency_d) by BusinessUnit = tostring(Tags_s["businessUnit"]), ResourceId = tostring(ResourceId_s), bin(UsageDate_t, 1d)
+| order by TotalCostUsd desc

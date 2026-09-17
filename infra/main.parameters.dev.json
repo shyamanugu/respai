@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "envName": { "value": "dev" },
+    "acrLoginServer": { "value": "REPLACE.azurecr.io" },
+    "imageTag": { "value": "latest" },
+    "reasoningEndpoint": { "value": "https://REPLACE.openai.azure.com" },
+    "reasoningDeployment": { "value": "gpt-5.4-nano" },
+    "azureSqlServer": { "value": "REPLACE.database.windows.net" },
+    "azureSqlDatabase": { "value": "REPLACE" },
+    "entraTenantId": { "value": "" },
+    "entraClientId": { "value": "" },
+    "spaBaseUrl": { "value": "https://REPLACE-dashboard-web" },
+    "chatApiBaseUrl": { "value": "https://REPLACE-chatbot" },
+
+    "_comment": "Secrets (reasoningApiKey, blobConnectionString, sqlPassword, chatJwtSecret, sessionSecret, entraClientSecret) are @secure() — pass them on the CLI (-p reasoningApiKey=... ) or from Key Vault, NEVER commit them here."
+  }
+}

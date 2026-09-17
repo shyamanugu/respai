@@ -1,0 +1,61 @@
+# --- Python bytecode / caches ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+*-venv/
+pipeline_venv/
+app-venv/
+
+# --- Local secrets / env ---
+.env
+.env.*
+*.env
+chat_venv/
+
+# --- Runtime data & logs (should not be baked into the image) ---
+logs/
+*.log
+*.log.*
+data/sessions/
+data/chat_memory/
+
+# --- SQLite: SHIP the analytics DB so the app can run, but drop the
+#     transient WAL/SHM sidecars (they are process-specific and are safely
+#     rebuilt by SQLite on first open). Checkpoint the DB before building
+#     (e.g. `sqlite3 data/employee_analytics.db "PRAGMA wal_checkpoint(TRUNCATE);"`)
+#     so all committed data lives in the main .db file that gets copied in.
+#     NOTE: data/employee_analytics.db is intentionally NOT ignored.
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+
+# --- Notebooks / scratch ---
+*.ipynb
+.ipynb_checkpoints/
+
+# --- Docs (not needed at runtime) ---
+docs/
+
+# --- VCS / editor / OS ---
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+*.md
+.DS_Store
+Thumbs.db
+
+# --- Docker files themselves ---
+Dockerfile
+.dockerignore

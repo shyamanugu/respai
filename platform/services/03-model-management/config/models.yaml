@@ -1,0 +1,27 @@
+# Config-as-code model resolution. Every alias below is a stable contract that
+# orchestration code depends on — the underlying provider/deployment can change
+# without touching a single line of application code.
+#
+# reason/bulk are null for ai_pipeline (fail-open to REASONING_MODEL_DEPLOYMENT);
+# set a real deployment to activate registry-driven selection. The extra aliases
+# (reason-pro, long-context, reasoning-o) are offered so the Playground can
+# compare model choices. Pricing for each deployment lives in pricing.yaml.
+
+_aliases: &aliases
+  reason:        { provider: azure_openai, deployment: null,                   kind: chat }      # set to activate; else env fallback
+  bulk:          { provider: azure_openai, deployment: null,                   kind: chat }      # cheaper model for denoise; else env fallback
+  nano:          { provider: azure_openai, deployment: gpt-5.4-nano,           kind: chat }      # fastest / lowest cost
+  reason-pro:    { provider: azure_openai, deployment: gpt-4.1,                kind: chat }      # highest-quality reasoning
+  long-context:  { provider: azure_openai, deployment: gpt-5-mini,             kind: chat }      # large transcript windows
+  reasoning-o:   { provider: azure_openai, deployment: o3-mini,               kind: chat }      # step-by-step reasoning
+  judge:         { provider: azure_openai, deployment: gpt-4o-mini,            kind: chat }      # LLM-as-judge for evals
+  embedding:     { provider: azure_openai, deployment: text-embedding-3-large, kind: embedding } # RAG embeddings
+  voice:         { provider: azure_openai, deployment: null,                   kind: realtime }  # not provisioned yet
+
+environments:
+  dev:
+    models: *aliases
+  test:
+    models: *aliases
+  prod:
+    models: *aliases

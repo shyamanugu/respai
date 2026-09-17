@@ -1,0 +1,842 @@
+{
+  "program_id": "telesales",
+  "program_name": "VZW Telesales",
+  "cache_ttl_seconds": 900,
+  "blob_prefix": null,
+  "individual_metric_queries": {
+    "rep_pivoted": "SELECT EmployeeID, MetricDesc, AVG(CAST(Result_Num AS FLOAT)) AS AvgValue, SUM(CAST(Result_Num AS FLOAT)) AS SumValue FROM vzw.rep_pivoted WHERE EmployeeID IN ({employee_ids}) AND Timeframe BETWEEN '{start_date}' AND '{end_date}' AND MetricDesc IS NOT NULL AND MetricDesc != '' AND MetricDesc IN ({metric_keys}) GROUP BY EmployeeID, MetricDesc",
+    "customer_experience": "SELECT ID AS EmployeeID, 'VXS Overall Experience' AS MetricDesc, AVG(CAST([Contact Experience Score] AS FLOAT)) AS AvgValue, SUM(CAST([Contact Experience Score] AS FLOAT)) AS SumValue FROM ccs.customer_experience_score WHERE ID IN ({employee_ids}) AND StartDate BETWEEN '{start_date}' AND '{end_date}' AND [Contact Experience Score] IS NOT NULL GROUP BY ID",
+    "order_lookup_tool": "SELECT x.EmployeeID, v.MetricDesc, AVG(v.val) AS AvgValue, SUM(v.val) AS SumValue FROM (SELECT EID AS EmployeeID, CAST([Quantity] AS FLOAT) AS units, 1.0 AS order_lines, CASE WHEN [Return Days] IS NOT NULL AND [Return Days] > 0 THEN 1.0 ELSE 0.0 END AS returns_flag, CASE WHEN [Install Date] IS NOT NULL THEN 1.0 ELSE 0.0 END AS install_flag, CASE WHEN [Comp Flag] IN ('Y','Yes','y','yes','1','True','true') THEN 1.0 ELSE 0.0 END AS comp_flag FROM vzw.order_lookup_tool WHERE EID IN ({employee_ids}) AND BizDate BETWEEN '{start_date}' AND '{end_date}') x CROSS APPLY (VALUES ('Units Sold', x.units), ('Order Lines', x.order_lines), ('Returns', x.returns_flag), ('Installs', x.install_flag), ('Comps', x.comp_flag)) v(MetricDesc, val) GROUP BY x.EmployeeID, v.MetricDesc",
+    "solutions": "SELECT x.EmployeeID, v.MetricDesc, AVG(v.val) AS AvgValue, SUM(v.val) AS SumValue FROM (SELECT EmployeeID, CAST(Transfer_Flag AS FLOAT) AS transfers, CAST(AppEng_Num AS FLOAT) AS app_eng, CAST(VT_ATTACH_NUM AS FLOAT) AS cobrowse, CAST(Trg_Call_Cnt AS FLOAT) AS tech_esc, CAST(Occ_Trans_Cnt AS FLOAT) AS value_trans FROM vzw.solutions WHERE EmployeeID IN ({employee_ids}) AND ReportDate BETWEEN '{start_date}' AND '{end_date}') x CROSS APPLY (VALUES ('Transfers', x.transfers), ('App Engagements', x.app_eng), ('Co-Browse Attaches', x.cobrowse), ('Tech Escalations', x.tech_esc), ('Value Transactions', x.value_trans)) v(MetricDesc, val) GROUP BY x.EmployeeID, v.MetricDesc"
+  },
+  "individual_metrics": {
+    "groups": [
+      {
+        "name": "Resolve",
+        "kpis": [
+          { "column_key": "2-Hour Resolve", "label": "2-Hour Resolve", "query": "rep_pivoted" },
+          { "column_key": "3-Day Resolve", "label": "3-Day Resolve", "query": "rep_pivoted" },
+          { "column_key": "7-Day Resolve", "label": "7-Day Resolve", "query": "rep_pivoted" },
+          { "column_key": "30-Day Resolve", "label": "30-Day Resolve", "query": "rep_pivoted" },
+          { "column_key": "3 Day Contact Disconnect %", "label": "3 Day Contact Disconnect %", "query": "rep_pivoted" },
+          { "column_key": "30 Day Contact Disconnect %", "label": "30 Day Contact Disconnect %", "query": "rep_pivoted" },
+          { "column_key": "90 Day Contact Disconnect %", "label": "90 Day Contact Disconnect %", "query": "rep_pivoted" }
+        ]
+      },
+      {
+        "name": "Efficiency",
+        "kpis": [
+          { "column_key": "Agent AHT", "label": "Agent AHT", "query": "rep_pivoted" },
+          { "column_key": "Agent Outbound AHT", "label": "Agent Outbound AHT", "query": "rep_pivoted" },
+          { "column_key": "Avg Response Time", "label": "Avg Response Time", "query": "rep_pivoted" },
+          { "column_key": "Agent Calls", "label": "Agent Calls", "query": "rep_pivoted" },
+          { "column_key": "AFRRT (Avg First Rep Response Time)", "label": "AFRRT (Avg First Rep Response Time)", "query": "rep_pivoted" }
+        ]
+      },
+      {
+        "name": "Quality",
+        "kpis": [
+          { "column_key": "VXS Overall Rep", "label": "VXS Overall Rep", "query": "rep_pivoted" },
+          { "column_key": "VXS Overall Experience", "label": "VXS Overall Experience", "query": "customer_experience" },
+          { "column_key": "Thumbs Up %", "label": "Thumbs Up %", "query": "rep_pivoted" },
+          { "column_key": "Thumbs Down %", "label": "Thumbs Down %", "query": "rep_pivoted" }
+        ]
+      },
+      {
+        "name": "Sales",
+        "kpis": [
+          { "column_key": "Units Sold", "label": "Units Sold", "query": "order_lookup_tool" },
+          { "column_key": "Order Lines", "label": "Orders", "query": "order_lookup_tool" },
+          { "column_key": "Returns", "label": "Returns", "query": "order_lookup_tool" },
+          { "column_key": "Installs", "label": "Installs", "query": "order_lookup_tool" },
+          { "column_key": "Comps", "label": "Comps", "query": "order_lookup_tool" }
+        ]
+      },
+      {
+        "name": "Behaviours",
+        "kpis": [
+          { "column_key": "Transfers", "label": "Transfers", "query": "solutions" },
+          { "column_key": "App Engagements", "label": "App Engagements", "query": "solutions" },
+          { "column_key": "Co-Browse Attaches", "label": "Co-Browse Attaches", "query": "solutions" },
+          { "column_key": "Tech Escalations", "label": "Tech Escalations", "query": "solutions" },
+          { "column_key": "Value Transactions", "label": "Value Transactions", "query": "solutions" }
+        ]
+      }
+    ]
+  },
+  "inverse_kpis": [
+    "escalations",
+    "new_line_opportunity_missed",
+    "upgrade_opportunity_missed"
+  ],
+  "scoring": [
+    {
+      "type": "quality",
+      "weight": 0.4,
+      "kpis": [
+        { "key": "customer_experience", "source": "kpis", "pre_scaled": false }
+      ]
+    },
+    {
+      "type": "target",
+      "weight": 0.3,
+      "targets": [
+        { "key": "new_line_pitches", "target": 40, "source": "kpis" },
+        { "key": "mobile_protection", "target": 30, "source": "kpis" },
+        { "key": "save_attempts", "target": 10, "source": "kpis" }
+      ]
+    },
+    {
+      "type": "trend",
+      "weight": 0.2,
+      "source": "kpis",
+      "metrics_ref": "individual_page.trends.trend_metrics"
+    },
+    {
+      "type": "penalty",
+      "weight": 0.1,
+      "kpis": [
+        { "key": "escalations", "source": "kpis" }
+      ],
+      "tiers": [
+        {
+          "max": 0,
+          "penalty": 0
+        },
+        {
+          "max": 2,
+          "per_unit": 10
+        },
+        {
+          "max": 5,
+          "base": 20,
+          "per_unit": 15
+        },
+        {
+          "max": null,
+          "base": 65,
+          "per_unit": 10
+        }
+      ]
+    }
+  ],
+  "risk_rules": [
+    {
+      "type": "delta_decline",
+      "threshold": -3,
+      "severity": "high",
+      "reason": "Declining trend: {delta} from previous period"
+    },
+    {
+      "type": "delta_decline",
+      "threshold": -5,
+      "severity": "critical",
+      "reason": "Declining trend: {delta} from previous period"
+    },
+    {
+      "type": "low_score",
+      "kpis": [
+        "vxs",
+        "vxs_solutions"
+      ],
+      "threshold": 70,
+      "severity": "high",
+      "reason": "Quality score below target: {value}/100"
+    },
+    {
+      "type": "low_score",
+      "kpis": [
+        "vxs",
+        "vxs_solutions"
+      ],
+      "threshold": 60,
+      "severity": "critical",
+      "reason": "Quality score below target: {value}/100"
+    },
+    {
+      "type": "high_value",
+      "kpis": [
+        "escalations"
+      ],
+      "threshold": 2,
+      "severity": "high",
+      "reason": "Elevated escalation count: {value} incidents"
+    },
+    {
+      "type": "high_value",
+      "kpis": [
+        "escalations"
+      ],
+      "threshold": 5,
+      "severity": "critical",
+      "reason": "Elevated escalation count: {value} incidents"
+    },
+    {
+      "type": "below_target",
+      "kpis": [
+        "new_line_pitches"
+      ],
+      "threshold": 30,
+      "severity": "high",
+      "reason": "Below target: {value} (target: 40+)"
+    },
+    {
+      "type": "below_target",
+      "kpis": [
+        "mobile_protection"
+      ],
+      "threshold": 20,
+      "severity": "high",
+      "reason": "Below target: {value} (target: 30+)"
+    }
+  ],
+  "individual_page": {
+    "kpi_groups": [
+      {
+        "name": "Sales KPIs",
+        "kpis": [
+          {
+            "key": "new_line_pitches",
+            "label": "New Line Pitches",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "new_line_opportunity_exists",
+            "label": "New Line Opportunity Exists",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "new_line_opportunity_missed",
+            "label": "New Line Opportunity Missed",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "upgrade_attempts",
+            "label": "No. of Upgrade Attempts",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "upgrade_opportunity_exists",
+            "label": "Upgrade Opportunity Exists",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "upgrade_opportunity_missed",
+            "label": "Upgrade Opportunity Missed",
+            "source": "kpis",
+            "source_type": "list"
+          }
+        ]
+      },
+      {
+        "name": "Retention & Assurance KPIs",
+        "kpis": [
+          {
+            "key": "save_attempts",
+            "label": "No. of Save Attempts",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "mobile_protection_attempts",
+            "label": "Mobile Protection Attempts",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "we_got_you_utterances",
+            "label": "\"We've Got You\" Utterances",
+            "source": "kpis",
+            "source_type": "list"
+          }
+        ]
+      },
+      {
+        "name": "Customer KPIs",
+        "kpis": [
+          {
+            "key": "escalations",
+            "label": "Escalations",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "customer_experience",
+            "label": "Customer Experience",
+            "source": "kpis",
+            "source_type": "list",
+            "pre_scaled": false
+          },
+          {
+            "key": "fwa_attempts",
+            "label": "FWA Attempts",
+            "source": "kpis",
+            "source_type": "list"
+          }
+        ]
+      }
+    ],
+    "core_skills": {
+      "name": "Core Skills",
+      "kpis": [
+        {
+          "key": "Comprehension",
+          "label": "Comprehension",
+          "source": "call_handling_and_soft_skills",
+          "source_type": "dict"
+        },
+        {
+          "key": "Language Proficiency",
+          "label": "Language Proficiency",
+          "source": "call_handling_and_soft_skills",
+          "source_type": "dict"
+        },
+        {
+          "key": "Emotional Intelligence",
+          "label": "Emotional Intelligence",
+          "source": "call_handling_and_soft_skills",
+          "source_type": "dict"
+        },
+        {
+          "key": "Relationship Building",
+          "label": "Relationship Building",
+          "source": "call_handling_and_soft_skills",
+          "source_type": "dict"
+        },
+        {
+          "key": "Professional Skills",
+          "label": "Professional Skills",
+          "source": "call_handling_and_soft_skills",
+          "source_type": "dict"
+        },
+        {
+          "key": "Subject Matter Expertise",
+          "label": "Subject Matter Expertise",
+          "source": "call_handling_and_soft_skills",
+          "source_type": "dict"
+        }
+      ]
+    },
+    "behavior_skills": {
+      "name": "Behavior Skills",
+      "kpis": [
+        {
+          "key": "Active Listening",
+          "label": "Active Listening",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Acknowledgment",
+          "label": "Acknowledgment",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Empathy",
+          "label": "Empathy",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Confidence",
+          "label": "Confidence",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Clarity",
+          "label": "Clarity",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Needs Discovery",
+          "label": "Needs Discovery",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Solution Guidance",
+          "label": "Solution Guidance",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Next Steps Summary",
+          "label": "Next Steps Summary",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Objection Handling",
+          "label": "Objection Handling",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Value Positioning",
+          "label": "Value Positioning",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Assumptive Close",
+          "label": "Assumptive Close",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Compliance Disclosures",
+          "label": "Compliance Disclosures",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Call Control",
+          "label": "Call Control",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        },
+        {
+          "key": "Professional Tone",
+          "label": "Professional Tone",
+          "source": "behavior_scores",
+          "source_type": "dict",
+          "category": "main"
+        }
+      ]
+    }
+  },
+  "analytics": {
+    "kpi_groups": [
+      {
+        "name": "Sales KPIs",
+        "kpis": [
+          {
+            "key": "new_line_pitches",
+            "label": "New Line Pitches",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "new_line_opportunity_exists",
+            "label": "New Line Opportunity Exists",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "new_line_opportunity_missed",
+            "label": "New Line Opportunity Missed",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "upgrade_attempts",
+            "label": "No. of Upgrade Attempts",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "upgrade_opportunity_exists",
+            "label": "Upgrade Opportunity Exists",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "upgrade_opportunity_missed",
+            "label": "Upgrade Opportunity Missed",
+            "source": "kpis",
+            "source_type": "list"
+          }
+        ]
+      },
+      {
+        "name": "Retention & Assurance KPIs",
+        "kpis": [
+          {
+            "key": "save_attempts",
+            "label": "No. of Save Attempts",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "mobile_protection_attempts",
+            "label": "Mobile Protection Attempts",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "we_got_you_utterances",
+            "label": "\"We've Got You\" Utterances",
+            "source": "kpis",
+            "source_type": "list"
+          }
+        ]
+      },
+      {
+        "name": "Customer KPIs",
+        "kpis": [
+          {
+            "key": "escalations",
+            "label": "Escalations",
+            "source": "kpis",
+            "source_type": "list"
+          },
+          {
+            "key": "customer_experience",
+            "label": "Customer Experience",
+            "source": "kpis",
+            "source_type": "list",
+            "pre_scaled": false
+          },
+          {
+            "key": "fwa_attempts",
+            "label": "FWA Attempts",
+            "source": "kpis",
+            "source_type": "list"
+          }
+        ]
+      }
+    ]
+  },
+  "manager_page": {
+    "top_metrics": [
+      {
+        "key": "team_size",
+        "type": "computed",
+        "computation": "team_size",
+        "label_key": "team_size_label",
+        "subtitle_key": "team_size_subtitle"
+      },
+      {
+        "key": "avg_performance",
+        "type": "computed",
+        "computation": "avg_performance",
+        "label_key": "avg_performance_label",
+        "subtitle_key": "avg_performance_subtitle"
+      },
+      {
+        "key": "top_performers",
+        "type": "computed",
+        "computation": "top_performers",
+        "label_key": "top_performers_label",
+        "subtitle_key": "top_performers_subtitle"
+      },
+      {
+        "key": "needs_focus",
+        "type": "computed",
+        "computation": "needs_focus",
+        "label_key": "needs_focus_label",
+        "subtitle_key": "needs_focus_subtitle"
+      }
+    ],
+    "summary_kpis": [
+      {
+        "key": "customer_experience",
+        "label": "💎 AVG Customer XS",
+        "agg": "mean",
+        "format": "{v} / 100",
+        "source": "kpis",
+        "scale": 100
+      },
+      {
+        "key": "escalations",
+        "label": "🚨 ESCALATIONS",
+        "agg": "sum",
+        "source": "kpis",
+        "scale": 1
+      },
+      {
+        "key": "new_line_pitches",
+        "label": "📱 NEW LINES",
+        "agg": "sum",
+        "source": "kpis",
+        "scale": 1
+      },
+      {
+        "key": "mobile_protection_attempts",
+        "label": "🛡️ PROTECTION",
+        "agg": "sum",
+        "source": "kpis",
+        "scale": 1
+      }
+    ],
+    "sections": [
+      "quality_sales",
+      "behavior_analysis",
+      "team_roster",
+      "coaching_priorities"
+    ],
+    "behavior_focus_count": 3,
+    "behavior_excellence_count": 3,
+    "escalation_threshold_factor": 1.5,
+    "behavior_kpi_group": "Behavior Scores",
+    "behavior_kpis": [
+      {
+        "key": "Active Listening",
+        "label": "Active Listening",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Acknowledgment",
+        "label": "Acknowledgment",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Empathy",
+        "label": "Empathy",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Confidence",
+        "label": "Confidence",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Clarity",
+        "label": "Clarity",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Needs Discovery",
+        "label": "Needs Discovery",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Solution Guidance",
+        "label": "Solution Guidance",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Next Steps Summary",
+        "label": "Next Steps Summary",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Objection Handling",
+        "label": "Objection Handling",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Value Positioning",
+        "label": "Value Positioning",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Assumptive Close",
+        "label": "Assumptive Close",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Compliance Disclosures",
+        "label": "Compliance Disclosures",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Call Control",
+        "label": "Call Control",
+        "source": "behavior_scores"
+      },
+      {
+        "key": "Professional Tone",
+        "label": "Professional Tone",
+        "source": "behavior_scores"
+      }
+    ],
+    "escalation_kpi": "escalations",    
+    "roster_kpis": [
+      {
+        "key": "new_line_pitches",
+        "label": "New Lines",
+        "source": "kpis",
+        "scale": 1
+      },
+      {
+        "key": "Emotional Intelligence",
+        "label": "Emotional Intelligence",
+        "source": "call_handling_and_softs_kills",
+        "scale": "percentage",
+        "pre_scaled": false
+      },
+      {
+        "key": "Relationship Building",
+        "label": "Relationship Building",
+        "source": "call_handling_and_softs_kills",
+        "scale": "percentage",
+        "pre_scaled": false
+      },
+      {
+        "key": "overall_behavior_score",
+        "label": "Overall Behavior Score",
+        "source": "computed"
+      }
+    ],
+    "perf_score_key": "performance_score",
+    "risk_count_key": "risk_count",
+    "top_performer_quantile": 0.75,
+    "needs_attention_quantile": 0.8,
+    "risk_count_threshold": 2
+  },
+  "ui": {
+    "app": {
+      "page_title": "APIX",
+      "dashboard_title": "APIX - Afni Performance Intelligence Index",
+      "welcome_template": "Welcome back, {name} | Role: {role}"
+    },
+    "login": {
+      "title": "APIX - Afni Performance Intelligence Index",
+      "subtitle": "Employee Coaching & Performance Dashboard"
+    },
+    "individual": {
+      "performance_score_label": "Performance Score",
+      "performance_dashboard": "Performance Dashboard",
+      "total_conversations": "Total Conversations",
+      "new_prospect": "New Prospect",
+      "strong_label": "STRONG",
+      "focus_label": "FOCUS",
+      "view_behaviors_btn": "✨ View All Behaviors",
+      "behavior_score_title": "Behavior Performance Score",
+      "behavior_score_subtitle": "AI-powered performance analytics",
+      "overview_tab": "Overview",
+      "trends_tab": "Trends",
+      "goals_tab": "Goals",
+      "notes_tab": "Notes",
+      "overview_header": "Overview",
+      "risk_header": "Areas Needing Attention",
+      "coaching_header": "💡 Coaching Recommendations",
+      "actionable_steps": "📋 Actionable Steps:",
+      "examples_header": "📝 Examples:",
+      "expected_impact": "Expected Impact:",
+      "trend_header": "Trend Analysis",
+      "goals_header": "Goals & Action Items",
+      "notes_header": "Coaching Notes",
+      "add_note_label": "Add a Note",
+      "add_note_placeholder": "Enter your coaching notes here...",
+      "recent_notes": "📅 Recent Notes",
+      "avg_score_label": "📊 Avg Score",
+      "total_label": "📈 Total",
+      "strong_count_label": "⭐ Strong"
+    },
+    "manager": {
+      "page_title": "Team Performance Overview",
+      "page_subtitle": "Comprehensive team analytics and insights",
+      "team_size_label": "⚡ TEAM SIZE",
+      "team_size_subtitle": "Active Agents",
+      "avg_performance_label": "📊 AVG PERFORMANCE",
+      "avg_performance_subtitle": "Team Average",
+      "top_performers_label": "🏆 TOP PERFORMERS",
+      "top_performers_subtitle": "{pct}% of Team",
+      "needs_focus_label": "⚠️ NEEDS FOCUS",
+      "needs_focus_subtitle": "Immediate Attention",
+      "quality_section": "🎯 QUALITY & SALES METRICS",
+      "customer_xs_label": "💎 AVG Customer XS",
+      "escalations_label": "🚨 ESCALATIONS",
+      "new_lines_label": "📱 NEW LINES",
+      "protection_label": "🛡️ PROTECTION",
+      "behavior_section": "🎭 BEHAVIOR INTELLIGENCE",
+      "critical_focus": "🔴 CRITICAL FOCUS AREAS",
+      "team_excellence": "🟢 TEAM EXCELLENCE",
+      "roster_section": "👥 TEAM ROSTER",
+      "coaching_section": "🎯 COACHING PRIORITIES",
+      "high_priority_label": "⚡ HIGH PRIORITY:",
+      "high_priority_msg": "{n} team member(s) require immediate intervention",
+      "escalation_alert_label": "🚨 ESCALATION ALERT:",
+      "escalation_alert_msg": "{n} total escalations detected - review de-escalation protocols",
+      "optimal_label": "✅ OPTIMAL PERFORMANCE:",
+      "optimal_msg": "Team is operating at peak efficiency across all metrics"
+    },
+    "sections": {
+      "escalation_title": "🚨 Escalation Management Dashboard",
+      "escalation_subtitle": "Review and analyze customer escalations with detailed insights",
+      "total_escalations": "Total Escalations",
+      "high_priority": "High Priority",
+      "avg_per_week": "Avg/Week",
+      "detailed_escalations": "📋 Detailed Escalations",
+      "conversation_excerpt": "💬 Conversation Excerpt",
+      "no_escalations": "✅ Outstanding Performance - No Escalations!",
+      "no_escalations_title": "Exceptional Service Quality",
+      "no_escalations_msg": "Zero escalations recorded for this period, indicating excellent customer handling, proactive issue resolution, and outstanding service delivery.",
+      "customer_xs_section": "😊 Customer Experience Breakdown",
+      "customer_xs_chart_title": "Customer Experience Distribution",
+      "customer_xs_xaxis": "Experience Level",
+      "sales_section": "💰 Sales Outcome Analysis",
+      "sales_chart_title": "Sales Outcome Distribution",
+      "behavior_section": "Behavior Performance Analysis",
+      "behavior_individual": "Individual Behavior Scores",
+      "improvement_areas": "Key Improvement Areas",
+      "insights_header": "💡 Key Insights",
+      "avg_score_label": "Average Score",
+      "strong_areas_label": "Strong Areas",
+      "focus_areas_label": "Focus Areas",
+      "strong_behaviors": "✅ Strong Behaviors:",
+      "needs_attention": "⚠️ Needs Attention:",
+      "vxs_customer_experience": "Customer Experience",
+      "vxs_solutions_quality": "Solutions Quality",
+      "vxs_subtitle": "Performance analysis and quality metrics evaluation",
+      "excellent_title": "Excellent Performance",
+      "excellent_msg": "You're exceeding expectations!",
+      "good_title": "Good Performance",
+      "good_msg": "Solid work with room to grow",
+      "needs_improvement_title": "Needs Improvement",
+      "needs_improvement_msg": "Focus areas identified",
+      "critical_title": "Critical Attention Required",
+      "critical_msg": "Immediate action needed",
+      "trend_label": "TREND",
+      "trend_improving": "Improving",
+      "trend_declining": "Declining",
+      "trend_stable": "Stable",
+      "score_progress": "SCORE PROGRESS",
+      "detailed_analytics": "Detailed Analytics",
+      "comprehensive_insights": "Comprehensive insights and performance metrics",
+      "current_value": "Current Value"
+    },
+    "charts": {
+      "individual_trace": "Individual",
+      "team_avg_trace": "Team Average",
+      "heatmap_title": "Performance Heatmap",
+      "heatmap_xaxis": "Period",
+      "heatmap_yaxis": "Metric",
+      "behavior_gauge": "BEHAVIOR SCORE"
+    },
+    "analytics": {
+      "page_title": "Advanced Analytics",
+      "coming_soon": "🚧 Advanced analytics features coming soon: predictive modeling, cohort analysis, and custom reporting."
+    },
+    "sidebar": {
+      "navigation": "Navigation",
+      "filters": "Filters",
+      "select_week": "📅 Select Week",
+      "week_help": "Select a week to view sales performance data",
+      "program_header": "Program",
+      "select_program": "🏢 Select Program",
+      "select_coach": "👨‍💼 Select Coach",
+      "select_employee": "👤 Employee",
+      "filter_coach": "👨‍💼 Filter by Coach",
+      "all_coaches": "All Coaches",
+      "export_header": "Export options",
+      "export_format": "Format",
+      "view_individual": "Individual Report",
+      "view_manager": "Manager Overview",
+      "view_analytics": "Individual Performance Metrics"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+name: json_output_instruction
+description: >
+  Standard closing instruction for prompts that need machine-parseable
+  output. Usecases append this fragment instead of each writing their own
+  phrasing, so a future change to the expected format is a one-file edit
+  here rather than a find-and-replace across every usecase's prompts.
+template: |
+  Respond with a single valid JSON object only. Do not include any text
+  before or after the JSON, and do not wrap it in markdown code fences.

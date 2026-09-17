@@ -1,0 +1,45 @@
+# ---- Secrets (NEVER commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ---- Local databases / regenerable data ----
+*.db
+*.sqlite
+*.sqlite3
+auth.db
+notes.db
+employee_analytics*.db
+
+# ---- Runtime sinks (traces / feedback / logs) ----
+data/
+traces/
+feedback/
+logs/
+*.log
+
+# ---- Node / frontend ----
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+.pnpm-store/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

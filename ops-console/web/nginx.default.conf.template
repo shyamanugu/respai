@@ -1,0 +1,16 @@
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / { try_files $uri $uri/ /index.html; }
+
+    # Proxy /ops/* to the ops backend, stripping the /ops prefix.
+    location /ops/ {
+        rewrite ^/ops/(.*)$ /$1 break;
+        proxy_pass       ${OPS_API_UPSTREAM};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}

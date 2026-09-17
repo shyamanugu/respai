@@ -1,0 +1,617 @@
+{
+  "program_id": "pso",
+  "program_name": "VZ Mobile Service",
+  "blob_prefix": null,
+  "cache_ttl_seconds": 900,
+  "individual_metric_queries": {
+    "rep_pivoted": "SELECT EmployeeID, MetricDesc, AVG(CAST(Result_Num AS FLOAT)) AS AvgValue, SUM(CAST(Result_Num AS FLOAT)) AS SumValue FROM vzw.rep_pivoted WHERE EmployeeID IN ({employee_ids}) AND Timeframe BETWEEN '{start_date}' AND '{end_date}' AND MetricDesc IS NOT NULL AND MetricDesc != '' AND MetricDesc IN ({metric_keys}) GROUP BY EmployeeID, MetricDesc",
+    "customer_experience": "SELECT ID AS EmployeeID, 'VXS Overall Experience' AS MetricDesc, AVG(CAST([Contact Experience Score] AS FLOAT)) AS AvgValue, SUM(CAST([Contact Experience Score] AS FLOAT)) AS SumValue FROM ccs.customer_experience_score WHERE ID IN ({employee_ids}) AND StartDate BETWEEN '{start_date}' AND '{end_date}' AND [Contact Experience Score] IS NOT NULL GROUP BY ID",
+    "solutions": "SELECT u.EmployeeID, u.MetricDesc, u.Val AS AvgValue, u.Val AS SumValue FROM (SELECT EmployeeID, CAST(100.0*SUM(VXS_Overall_Rep_Pass)/NULLIF(SUM(VXS_Overall_Rep_Cnt),0) AS FLOAT) AS CSAT, CAST(100.0*SUM(VXS_VZ_Sat_Pass)/NULLIF(SUM(VXS_VZ_Sat_Cnt),0) AS FLOAT) AS VZSat, CAST(100.0*SUM(Transfer_Flag)/NULLIF(SUM(CallsAnswered),0) AS FLOAT) AS TransferRate, CAST(SUM(Handle_Tm_Seconds)/NULLIF(SUM(CallsAnswered),0) AS FLOAT) AS AHT, CAST(100.0*SUM(Resolve_2Hr_Count)/NULLIF(SUM(Resolve_Total_Contacts),0) AS FLOAT) AS Resolve2Hr, CAST(100.0*SUM(Resolve_Same_Day_Count)/NULLIF(SUM(Resolve_Total_Contacts),0) AS FLOAT) AS ResolveSameDay, CAST(100.0*SUM(Resolve_3Day_Count)/NULLIF(SUM(Resolve_Total_Contacts),0) AS FLOAT) AS Resolve3Day, CAST(100.0*SUM(Resolve_7Day_Count)/NULLIF(SUM(Resolve_Total_Contacts),0) AS FLOAT) AS Resolve7Day, CAST(100.0*SUM(Resolve_5Day_Count)/NULLIF(SUM(Resolve_Total_Contacts),0) AS FLOAT) AS Resolve5Day, CAST(SUM(CallsAnswered) AS FLOAT) AS CallsAns, CAST(SUM(AppEng_Num) AS FLOAT) AS AppEng, CAST(100.0*SUM(VT_ATTACH_NUM)/NULLIF(SUM(VT_Eligible_Count),0) AS FLOAT) AS VTAttach, CAST(SUM(VPC_Num)/NULLIF(SUM(CallsAnswered),0) AS FLOAT) AS VPC, CAST(SUM(OCC_Amt)/NULLIF(SUM(Occ_Trans_Cnt),0) AS FLOAT) AS OCCContact, CAST(SUM(NVPH_Num) AS FLOAT) AS VPH, CAST(SUM(Resolve_Total_Contacts) AS FLOAT) AS TotalContacts FROM vzw.solutions WHERE EmployeeID IN ({employee_ids}) AND ReportDate BETWEEN '{start_date}' AND '{end_date}' GROUP BY EmployeeID) s UNPIVOT (Val FOR MetricDesc IN (CSAT, VZSat, TransferRate, AHT, Resolve2Hr, ResolveSameDay, Resolve3Day, Resolve7Day, Resolve5Day, CallsAns, AppEng, VTAttach, VPC, OCCContact, VPH, TotalContacts)) u"
+  },
+  "individual_metrics": {
+    "groups": [
+      {
+        "name": "Customer Satisfaction",
+        "kpis": [
+          { "column_key": "CSAT", "label": "Customer Satisfaction", "query": "solutions", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "VZSat", "label": "VZ Satisfaction", "query": "solutions", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "TransferRate", "label": "Transfer Rate", "query": "solutions", "is_percentage": true, "higher_is_better": false },
+          { "column_key": "AHT", "label": "Avg Handle Time", "query": "solutions", "unit_divisor": 60, "unit_suffix": " min", "higher_is_better": false }
+        ]
+      },
+      {
+        "name": "First Call Resolution",
+        "kpis": [
+          { "column_key": "Resolve2Hr", "label": "2-Hour Resolve", "query": "solutions", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "ResolveSameDay", "label": "Same-Day Resolve", "query": "solutions", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Resolve3Day", "label": "3-Day Resolve", "query": "solutions", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Resolve7Day", "label": "7-Day Resolve", "query": "solutions", "is_percentage": true, "higher_is_better": true }
+        ]
+      },
+      {
+        "name": "Productivity & Engagement",
+        "kpis": [
+          { "column_key": "CallsAns", "label": "Calls Answered", "query": "solutions", "higher_is_better": true },
+          { "column_key": "Resolve5Day", "label": "5-Day Resolve", "query": "solutions", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "AppEng", "label": "App Engagement", "query": "solutions", "higher_is_better": true },
+          { "column_key": "VTAttach", "label": "View Together Attach Rate", "query": "solutions", "is_percentage": true, "higher_is_better": true }
+        ]
+      }
+    ],
+    "more_groups": [
+      {
+        "name": "Value & Volume",
+        "kpis": [
+          { "column_key": "VPC", "label": "Value per Contact", "query": "solutions", "higher_is_better": true },
+          { "column_key": "OCCContact", "label": "OCC per Contact", "query": "solutions", "higher_is_better": true },
+          { "column_key": "VPH", "label": "Net Value per Hour", "query": "solutions", "higher_is_better": true },
+          { "column_key": "TotalContacts", "label": "Total Contacts Handled", "query": "solutions", "higher_is_better": true }
+        ]
+      }
+    ],
+    "behavior_skills": [
+      {
+        "name": "Communication",
+        "kpis": [
+          { "column_key": "Active Listening", "label": "Communication - Active Listening", "kpi_name": "Active Listening", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Clarity", "label": "Communication - Clarity", "kpi_name": "Clarity", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Professional Tone", "label": "Communication - Professional Tone", "kpi_name": "Professional Tone", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true }
+        ]
+      },
+      {
+        "name": "Customer Care",
+        "kpis": [
+          { "column_key": "Empathy", "label": "Customer Care - Empathy", "kpi_name": "Empathy", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Acknowledgment", "label": "Customer Care - Acknowledgment", "kpi_name": "Acknowledgment", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Reassurance", "label": "Customer Care - Reassurance", "kpi_name": "Reassurance", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Ownership", "label": "Customer Care - Ownership", "kpi_name": "Ownership", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true }
+        ]
+      },
+      {
+        "name": "Problem Solving",
+        "kpis": [
+          { "column_key": "Issue Investigation", "label": "Problem Solving - Issue Investigation", "kpi_name": "Issue Investigation", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Solution Guidance", "label": "Problem Solving - Solution Guidance", "kpi_name": "Solution Guidance", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true }
+        ]
+      },
+      {
+        "name": "Resolution",
+        "kpis": [
+          { "column_key": "Resolution Verification", "label": "Resolution - Resolution Verification", "kpi_name": "Resolution Verification", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Next Steps Summary", "label": "Resolution - Next Steps Summary", "kpi_name": "Next Steps Summary", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true }
+        ]
+      },
+      {
+        "name": "Operations",
+        "kpis": [
+          { "column_key": "Call Control", "label": "Operations - Call Control", "kpi_name": "Call Control", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true },
+          { "column_key": "Escalation Management", "label": "Operations - Escalation Management", "kpi_name": "Escalation Management", "source": "behavior_scores", "is_percentage": true, "higher_is_better": true }
+        ]
+      }
+    ],
+    "header": {
+      "title_caption": "Week: {week} | Employee ID: {emp_id} | Program: {program_id}",
+      "performance_score_label": "Performance Score",
+      "dashboard_label": "Performance Dashboard"
+    },
+    "behavior_panel": {
+      "stat": { "label": "Total Calls", "icon": "💬", "metric": "CallsAns" },
+      "show_speedometer": true,
+      "strong_focus": {
+        "enabled": true,
+        "threshold": 0.5,
+        "strong_label": "STRONG",
+        "strong_color": "#0F9ED5",
+        "focus_label": "FOCUS",
+        "focus_color": "#ef4444",
+        "unavailable_caption": "Behaviour analytics are not available from Azure SQL yet."
+      }
+    },
+    "tabs": ["overview", "trends", "goals", "notes"],
+    "overview_sections": [
+      { "type": "radar" },
+      { "type": "coaching" },
+      { "type": "risks" }
+    ],
+    "radar_metrics": [
+      { "metric": "Predicted CSAT", "label": "Predicted CSAT", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "metric": "FCR Likelihood", "label": "FCR Likelihood", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "metric": "Quality Score", "label": "Quality Score", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "metric": "Issue Resolution Effectiveness", "label": "Issue Resolution Effectiveness", "source": "comparison", "scale": "percentage", "pre_scaled": false }
+    ],
+    "trend_metrics": [
+      { "metric": "Predicted CSAT", "label": "Predicted CSAT", "source": "trends", "pre_scaled": false },
+      { "metric": "FCR Likelihood", "label": "FCR Likelihood", "source": "trends", "pre_scaled": false },
+      { "metric": "Quality Score", "label": "Quality Score", "source": "trends", "pre_scaled": false },
+      { "metric": "Issue Resolution Effectiveness", "label": "Issue Resolution Effectiveness", "source": "trends", "pre_scaled": false },
+      { "metric": "Customer Experience", "label": "Customer Experience", "source": "trends", "pre_scaled": false },
+      { "metric": "Escalations", "label": "No. of Escalations", "source": "trends", "pre_scaled": true },
+      { "metric": "Repeat Contact Risk", "label": "Repeat Contact Risk", "source": "trends", "pre_scaled": true }
+    ],
+    "coaching_priority": [
+      { "key": "cx", "label": "Customer Experience", "metrics": ["Predicted CSAT", "Customer Confidence", "Customer Effort (Ease)", "Customer Experience"] },
+      { "key": "resolve", "label": "Resolution", "metrics": ["FCR Likelihood", "Resolution Completeness", "Resolution Confidence", "Issue Resolution Effectiveness", "Next Steps Communication"] },
+      { "key": "quality", "label": "Quality & Compliance", "metrics": ["Quality Score", "Compliance Score", "Process Adherence"] },
+      { "key": "risk", "label": "Repeat Contact Risk", "metrics": ["Repeat Contact Risk", "Escalation Risk", "Callback Risk", "Reopen Risk", "Escalations"] }
+    ]
+  },
+  "inverse_kpis": [
+    "escalations",
+    "repeat_contact_risk",
+    "escalation_risk",
+    "callback_risk",
+    "reopen_risk"
+  ],
+  "scoring": [
+    {
+      "type": "quality",
+      "weight": 0.4,
+      "kpis": [
+        { "key": "customer_experience", "source": "kpis", "pre_scaled": false }
+      ]
+    },
+    {
+      "type": "target",
+      "weight": 0.3,
+      "targets": [
+        { "key": "fcr_likelihood", "target": 0.7, "source": "kpis" },
+        { "key": "quality", "target": 0.7, "source": "kpis" },
+        { "key": "issue_resolution_effectiveness", "target": 0.7, "source": "kpis" }
+      ]
+    },
+    {
+      "type": "trend",
+      "weight": 0.2,
+      "source": "kpis",
+      "metrics_ref": "individual_page.trends.trend_metrics"
+    },
+    {
+      "type": "penalty",
+      "weight": 0.1,
+      "kpis": [
+        { "key": "escalations", "source": "kpis" }
+      ],
+      "tiers": [
+        { "max": 0, "penalty": 0 },
+        { "max": 2, "per_unit": 10 },
+        { "max": 5, "base": 20, "per_unit": 15 },
+        { "max": null, "base": 65, "per_unit": 10 }
+      ]
+    }
+  ],
+  "risk_rules": [
+    {
+      "type": "delta_decline",
+      "threshold": -3,
+      "severity": "high",
+      "reason": "Declining trend: {delta} from previous period"
+    },
+    {
+      "type": "delta_decline",
+      "threshold": -5,
+      "severity": "critical",
+      "reason": "Declining trend: {delta} from previous period"
+    },
+    {
+      "type": "low_score",
+      "kpis": ["customer_experience", "predicted_csat"],
+      "threshold": 70,
+      "severity": "high",
+      "reason": "Quality score below target: {value}/100"
+    },
+    {
+      "type": "low_score",
+      "kpis": ["customer_experience", "predicted_csat"],
+      "threshold": 60,
+      "severity": "critical",
+      "reason": "Quality score below target: {value}/100"
+    },
+    {
+      "type": "high_value",
+      "kpis": ["escalations"],
+      "threshold": 2,
+      "severity": "high",
+      "reason": "Elevated escalation count: {value} incidents"
+    },
+    {
+      "type": "high_value",
+      "kpis": ["escalations"],
+      "threshold": 5,
+      "severity": "critical",
+      "reason": "Elevated escalation count: {value} incidents"
+    },
+    {
+      "type": "high_value",
+      "kpis": ["repeat_contact_risk"],
+      "threshold": 3,
+      "severity": "high",
+      "reason": "Elevated repeat contact risk: {value} calls"
+    }
+  ],
+  "individual_page": {
+    "kpi_groups": [
+      {
+        "name": "Customer Experience & Resolution",
+        "kpis": [
+          { "key": "predicted_csat", "label": "Predicted CSAT", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "customer_confidence", "label": "Customer Confidence", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "customer_effort", "label": "Customer Effort (Ease)", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "fcr_likelihood", "label": "FCR Likelihood", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "issue_resolution_effectiveness", "label": "Issue Resolution Effectiveness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "resolution_completeness", "label": "Resolution Completeness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Quality & Compliance",
+        "kpis": [
+          { "key": "quality", "label": "Quality Score", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "compliance", "label": "Compliance Score", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "process_adherence", "label": "Process Adherence", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Customer KPIs",
+        "kpis": [
+          { "key": "customer_experience", "label": "Customer Experience", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "escalations", "label": "Escalations", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": true },
+          { "key": "repeat_contact_risk", "label": "Repeat Contact Risk", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": true }
+        ]
+      }
+    ],
+    "more_kpi_groups": [
+      {
+        "name": "Resolution Details",
+        "kpis": [
+          { "key": "resolution_confidence", "label": "Resolution Confidence", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "next_steps_clarity", "label": "Next Steps Communication", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "case_management", "label": "Case Management Effectiveness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Customer Care Handling",
+        "kpis": [
+          { "key": "issue_ownership", "label": "Issue Ownership Effectiveness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "escalation_handling", "label": "Escalation Necessity", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "transfer_avoidance", "label": "Transfer Avoidance", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Operational Efficiency",
+        "kpis": [
+          { "key": "aht_efficiency", "label": "AHT Assessment", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "contact_handling_efficiency", "label": "Contact Handling Efficiency", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false },
+          { "key": "hold_management", "label": "Hold Management Effectiveness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Repeat Contact Risk",
+        "kpis": [
+          { "key": "escalation_risk", "label": "Escalation Risk", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": true },
+          { "key": "callback_risk", "label": "Callback Risk", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": true },
+          { "key": "reopen_risk", "label": "Reopen Risk", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "pre_scaled": true }
+        ]
+      }
+    ],
+    "core_skills": {
+      "name": "Core Skills",
+      "kpis": [
+        { "key": "Comprehension", "label": "Comprehension", "source": "call_handling_and_soft_skills", "source_type": "dict" },
+        { "key": "Language Proficiency", "label": "Language Proficiency", "source": "call_handling_and_soft_skills", "source_type": "dict" },
+        { "key": "Emotional Intelligence", "label": "Emotional Intelligence", "source": "call_handling_and_soft_skills", "source_type": "dict" },
+        { "key": "Relationship Building", "label": "Relationship Building", "source": "call_handling_and_soft_skills", "source_type": "dict" },
+        { "key": "Professional Skills", "label": "Professional Skills", "source": "call_handling_and_soft_skills", "source_type": "dict" },
+        { "key": "Subject Matter Expertise", "label": "Subject Matter Expertise", "source": "call_handling_and_soft_skills", "source_type": "dict" }
+      ]
+    },
+    "behavior_skills": {
+      "name": "Behavior Skills",
+      "kpis": [
+        { "key": "Active Listening", "label": "Active Listening", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Clarity", "label": "Clarity", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Professional Tone", "label": "Professional Tone", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Empathy", "label": "Empathy", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Acknowledgment", "label": "Acknowledgment", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Reassurance", "label": "Reassurance", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Ownership", "label": "Ownership", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Issue Investigation", "label": "Issue Investigation", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Solution Guidance", "label": "Solution Guidance", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Resolution Verification", "label": "Resolution Verification", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Next Steps Summary", "label": "Next Steps Summary", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Call Control", "label": "Call Control", "source": "behavior_scores", "source_type": "dict", "category": "main" },
+        { "key": "Escalation Management", "label": "Escalation Management", "source": "behavior_scores", "source_type": "dict", "category": "main" }
+      ]
+    },
+    "header_stats": [
+      { "key": "totalCallCount", "label": "Total Conversations", "icon": "💬", "source": "" },
+      { "key": "total", "label": "New Prospect", "icon": "🆕", "source": "new_prospect" }
+    ],
+    "behavior_summary": {
+      "sources": ["behavior_skills", "core_skills"],
+      "threshold": 0.5,
+      "strong_label": "STRONG",
+      "strong_color": "#0F9ED5",
+      "focus_label": "FOCUS",
+      "focus_color": "#ef4444"
+    },
+    "tabs": ["overview", "trends", "goals", "notes"],
+    "trends": {
+      "trend_metrics": [
+        { "metric": "Predicted CSAT", "label": "Predicted CSAT", "source": "trends", "pre_scaled": false },
+        { "metric": "FCR Likelihood", "label": "FCR Likelihood", "source": "trends", "pre_scaled": false },
+        { "metric": "Quality Score", "label": "Quality Score", "source": "trends", "pre_scaled": false },
+        { "metric": "Issue Resolution Effectiveness", "label": "Issue Resolution Effectiveness", "source": "trends", "pre_scaled": false },
+        { "metric": "Customer Experience", "label": "Customer Experience", "source": "trends", "pre_scaled": false },
+        { "metric": "Escalations", "label": "No. of Escalations", "source": "trends", "pre_scaled": true }
+      ]
+    },
+    "overview_sections": [
+      { "key": "summary", "type": "summary", "source": "" },
+      { "key": "risks", "type": "risks", "source": "" },
+      { "key": "radar", "type": "radar", "source": "behavior_scores", "scale": "percentage" },
+      { "key": "key_improvements", "type": "section_renderer", "renderer": "key_improvements", "source": "" },
+      { "key": "escalations", "type": "section_renderer", "renderer": "escalations", "source": "" },
+      { "key": "customer_experience", "type": "section_renderer", "renderer": "customer_experience", "source": "" },
+      { "key": "sales_outcome", "type": "section_renderer", "renderer": "sales_outcome", "source": "" },
+      { "key": "tips", "type": "coaching", "source": "" }
+    ],
+    "radar_metrics": [
+      { "metric": "Predicted CSAT", "label": "Predicted CSAT %", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "metric": "FCR Likelihood", "label": "FCR Likelihood %", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "metric": "Quality Score", "label": "Quality %", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "metric": "Issue Resolution Effectiveness", "label": "Issue Resolution %", "source": "comparison", "scale": "percentage", "pre_scaled": false }
+    ]
+  },
+  "analytics": {
+    "kpi_groups": [
+      {
+        "name": "Customer Experience",
+        "kpis": [
+          { "key": "predicted_csat", "label": "Predicted CSAT", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "customer_confidence", "label": "Customer Confidence", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "customer_effort", "label": "Customer Effort (Ease)", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Resolve",
+        "kpis": [
+          { "key": "fcr_likelihood", "label": "FCR Likelihood", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "resolution_completeness", "label": "Resolution Completeness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "resolution_confidence", "label": "Resolution Confidence", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "next_steps_clarity", "label": "Next Steps Communication", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "issue_resolution_effectiveness", "label": "Issue Resolution Effectiveness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Quality",
+        "kpis": [
+          { "key": "quality", "label": "Quality Score", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "compliance", "label": "Compliance Score", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "process_adherence", "label": "Process Adherence", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Customer Care Handling",
+        "kpis": [
+          { "key": "issue_ownership", "label": "Issue Ownership Effectiveness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "escalation_handling", "label": "Escalation Necessity", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "transfer_avoidance", "label": "Transfer Avoidance", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "case_management", "label": "Case Management Effectiveness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Operational Efficiency",
+        "kpis": [
+          { "key": "aht_efficiency", "label": "AHT Assessment", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "contact_handling_efficiency", "label": "Contact Handling Efficiency", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false },
+          { "key": "hold_management", "label": "Hold Management Effectiveness", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": false }
+        ]
+      },
+      {
+        "name": "Repeat Contact Risk",
+        "kpis": [
+          { "key": "repeat_contact_risk", "label": "Repeat Contact Risk", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": true },
+          { "key": "escalation_risk", "label": "Escalation Risk", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": true },
+          { "key": "callback_risk", "label": "Callback Risk", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": true },
+          { "key": "reopen_risk", "label": "Reopen Risk", "source": "kpi_groups", "source_type": "list", "popup": true, "items": "list", "items_prop": { "key_data": "date_utc", "key_contact": "contact_id", "key_status": "status", "key_transcript": "transcript_excerpt" }, "prompt": "", "pre_scaled": true }
+        ]
+      },
+      {
+        "name": "Customer KPIs",
+        "kpis": [
+          { "key": "customer_experience", "label": "Customer Experience", "source": "kpis", "source_type": "list", "pre_scaled": false },
+          { "key": "escalations", "label": "Escalations", "source": "kpis", "source_type": "list", "pre_scaled": true }
+        ]
+      }
+    ]
+  },
+  "manager_page": {
+    "top_metrics": [
+      { "key": "team_size", "type": "computed", "computation": "team_size", "label_key": "team_size_label", "subtitle_key": "team_size_subtitle" },
+      { "key": "avg_performance", "type": "computed", "computation": "avg_performance", "label_key": "avg_performance_label", "subtitle_key": "avg_performance_subtitle" },
+      { "key": "top_performers", "type": "computed", "computation": "top_performers", "label_key": "top_performers_label", "subtitle_key": "top_performers_subtitle" },
+      { "key": "needs_focus", "type": "computed", "computation": "needs_focus", "label_key": "needs_focus_label", "subtitle_key": "needs_focus_subtitle" }
+    ],
+    "summary_kpis": [
+      { "key": "customer_experience", "label": "💎 AVG Customer XS", "agg": "mean", "format": "{v} / 100", "source": "kpis" },
+      { "key": "escalations", "label": "🚨 ESCALATIONS", "agg": "sum", "source": "kpis" },
+      { "key": "predicted_csat", "label": "Predicted CSAT", "agg": "mean", "source": "kpis" },
+      { "key": "fcr_likelihood", "label": "FCR Likelihood", "agg": "mean", "source": "kpis" }
+    ],
+    "sections": ["quality_sales", "behavior_analysis", "team_roster", "coaching_priorities"],
+    "behavior_focus_count": 3,
+    "behavior_excellence_count": 3,
+    "escalation_threshold_factor": 1.5,
+    "behavior_kpi_group": "Behavior Scores",
+    "behavior_kpis": [
+      { "key": "Active Listening", "label": "Active Listening", "source": "behavior_scores" },
+      { "key": "Clarity", "label": "Clarity", "source": "behavior_scores" },
+      { "key": "Professional Tone", "label": "Professional Tone", "source": "behavior_scores" },
+      { "key": "Empathy", "label": "Empathy", "source": "behavior_scores" },
+      { "key": "Acknowledgment", "label": "Acknowledgment", "source": "behavior_scores" },
+      { "key": "Reassurance", "label": "Reassurance", "source": "behavior_scores" },
+      { "key": "Ownership", "label": "Ownership", "source": "behavior_scores" },
+      { "key": "Issue Investigation", "label": "Issue Investigation", "source": "behavior_scores" },
+      { "key": "Solution Guidance", "label": "Solution Guidance", "source": "behavior_scores" },
+      { "key": "Resolution Verification", "label": "Resolution Verification", "source": "behavior_scores" },
+      { "key": "Next Steps Summary", "label": "Next Steps Summary", "source": "behavior_scores" },
+      { "key": "Call Control", "label": "Call Control", "source": "behavior_scores" },
+      { "key": "Escalation Management", "label": "Escalation Management", "source": "behavior_scores" }
+    ],
+    "escalation_kpi": "escalations",
+    "roster_kpis": [
+      { "key": "Predicted CSAT", "label": "Predicted CSAT %", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "key": "FCR Likelihood", "label": "FCR Likelihood %", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "key": "Quality Score", "label": "Quality %", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "key": "Issue Resolution Effectiveness", "label": "Issue Resolution %", "source": "comparison", "scale": "percentage", "pre_scaled": false },
+      { "key": "overall_behavior_score", "label": "Overall Behavior Score", "source": "computed" }
+    ],
+    "perf_score_key": "performance_score",
+    "risk_count_key": "risk_count",
+    "top_performer_quantile": 0.75,
+    "needs_attention_quantile": 0.8,
+    "risk_count_threshold": 2
+  },
+  "ui": {
+    "app": {
+      "page_title": "APIX",
+      "dashboard_title": "APIX - Afni Performance Intelligence Index",
+      "welcome_template": "Welcome back, {name} | Role: {role}"
+    },
+    "login": {
+      "title": "APIX - Afni Performance Intelligence Index",
+      "subtitle": "Employee Coaching & Performance Dashboard"
+    },
+    "individual": {
+      "performance_score_label": "Performance Score",
+      "performance_dashboard": "Performance Dashboard",
+      "total_conversations": "Total Conversations",
+      "new_prospect": "New Prospect",
+      "strong_label": "STRONG",
+      "focus_label": "FOCUS",
+      "view_behaviors_btn": "✨ View All Behaviors",
+      "behavior_score_title": "Behavior Performance Score",
+      "behavior_score_subtitle": "AI-powered performance analytics",
+      "overview_tab": "Overview",
+      "trends_tab": "Trends",
+      "goals_tab": "Goals",
+      "notes_tab": "Notes",
+      "overview_header": "Overview",
+      "risk_header": "Areas Needing Attention",
+      "coaching_header": "💡 Coaching Recommendations",
+      "actionable_steps": "📋 Actionable Steps:",
+      "examples_header": "📝 Examples:",
+      "expected_impact": "Expected Impact:",
+      "trend_header": "Trend Analysis",
+      "goals_header": "Goals & Action Items",
+      "notes_header": "Coaching Notes",
+      "add_note_label": "Add a Note",
+      "add_note_placeholder": "Enter your coaching notes here...",
+      "recent_notes": "📅 Recent Notes",
+      "avg_score_label": "📊 Avg Score",
+      "total_label": "📈 Total",
+      "strong_count_label": "⭐ Strong"
+    },
+    "manager": {
+      "page_title": "Team Performance Overview",
+      "page_subtitle": "Comprehensive team analytics and insights",
+      "team_size_label": "⚡ TEAM SIZE",
+      "team_size_subtitle": "Active Agents",
+      "avg_performance_label": "📊 AVG PERFORMANCE",
+      "avg_performance_subtitle": "Team Average",
+      "top_performers_label": "🏆 TOP PERFORMERS",
+      "top_performers_subtitle": "{pct}% of Team",
+      "needs_focus_label": "⚠️ NEEDS FOCUS",
+      "needs_focus_subtitle": "Immediate Attention",
+      "quality_section": "🎯 CUSTOMER METRICS",
+      "customer_xs_label": "💎 AVG Customer XS",
+      "escalations_label": "🚨 ESCALATIONS",
+      "new_lines_label": "📱 NEW LINES",
+      "protection_label": "🛡️ PROTECTION",
+      "behavior_section": "🎭 BEHAVIOR INTELLIGENCE",
+      "critical_focus": "🔴 CRITICAL FOCUS AREAS",
+      "team_excellence": "🟢 TEAM EXCELLENCE",
+      "roster_section": "👥 TEAM ROSTER",
+      "coaching_section": "🎯 COACHING PRIORITIES",
+      "high_priority_label": "⚡ HIGH PRIORITY:",
+      "high_priority_msg": "{n} team member(s) require immediate intervention",
+      "escalation_alert_label": "🚨 ESCALATION ALERT:",
+      "escalation_alert_msg": "{n} total escalations detected - review de-escalation protocols",
+      "optimal_label": "✅ OPTIMAL PERFORMANCE:",
+      "optimal_msg": "Team is operating at peak efficiency across all metrics"
+    },
+    "sections": {
+      "escalation_title": "🚨 Escalation Management Dashboard",
+      "escalation_subtitle": "Review and analyze customer escalations with detailed insights",
+      "total_escalations": "Total Escalations",
+      "high_priority": "High Priority",
+      "avg_per_week": "Avg/Week",
+      "detailed_escalations": "📋 Detailed Escalations",
+      "conversation_excerpt": "💬 Conversation Excerpt",
+      "no_escalations": "✅ Outstanding Performance - No Escalations!",
+      "no_escalations_title": "Exceptional Service Quality",
+      "no_escalations_msg": "Zero escalations recorded for this period, indicating excellent customer handling, proactive issue resolution, and outstanding service delivery.",
+      "customer_xs_section": "😊 Customer Experience Breakdown",
+      "customer_xs_chart_title": "Customer Experience Distribution",
+      "customer_xs_xaxis": "Experience Level",
+      "sales_section": "💰 Sales Outcome Analysis",
+      "sales_chart_title": "Sales Outcome Distribution",
+      "behavior_section": "Behavior Performance Analysis",
+      "behavior_individual": "Individual Behavior Scores",
+      "improvement_areas": "Key Improvement Areas",
+      "insights_header": "💡 Key Insights",
+      "avg_score_label": "Average Score",
+      "strong_areas_label": "Strong Areas",
+      "focus_areas_label": "Focus Areas",
+      "strong_behaviors": "✅ Strong Behaviors:",
+      "needs_attention": "⚠️ Needs Attention:",
+      "vxs_customer_experience": "Customer Experience",
+      "vxs_solutions_quality": "Solutions Quality",
+      "vxs_subtitle": "Performance analysis and quality metrics evaluation",
+      "excellent_title": "Excellent Performance",
+      "excellent_msg": "You're exceeding expectations!",
+      "good_title": "Good Performance",
+      "good_msg": "Solid work with room to grow",
+      "needs_improvement_title": "Needs Improvement",
+      "needs_improvement_msg": "Focus areas identified",
+      "critical_title": "Critical Attention Required",
+      "critical_msg": "Immediate action needed",
+      "trend_label": "TREND",
+      "trend_improving": "Improving",
+      "trend_declining": "Declining",
+      "trend_stable": "Stable",
+      "score_progress": "SCORE PROGRESS",
+      "detailed_analytics": "Detailed Analytics",
+      "comprehensive_insights": "Comprehensive insights and performance metrics",
+      "current_value": "Current Value"
+    },
+    "charts": {
+      "individual_trace": "Individual",
+      "team_avg_trace": "Team Average",
+      "heatmap_title": "Performance Heatmap",
+      "heatmap_xaxis": "Period",
+      "heatmap_yaxis": "Metric",
+      "behavior_gauge": "BEHAVIOR SCORE"
+    },
+    "analytics": {
+      "page_title": "Advanced Analytics",
+      "coming_soon": "🚧 Advanced analytics features coming soon: predictive modeling, cohort analysis, and custom reporting."
+    },
+    "sidebar": {
+      "navigation": "Navigation",
+      "filters": "Filters",
+      "select_week": "📅 Select Week",
+      "week_help": "Select a week to view sales performance data",
+      "program_header": "Program",
+      "select_program": "🏢 Select Program",
+      "select_coach": "👨‍💼 Select Coach",
+      "select_employee": "👤 Employee",
+      "filter_coach": "👨‍💼 Filter by Coach",
+      "all_coaches": "All Coaches",
+      "export_header": "Export options",
+      "export_format": "Format",
+      "view_individual": "Individual Report",
+      "view_manager": "Manager Overview",
+      "view_analytics": "Individual Performance Metrics"
+    }
+  }
+}

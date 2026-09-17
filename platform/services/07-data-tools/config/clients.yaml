@@ -1,0 +1,25 @@
+# Client -> Azure AI Search index mapping. This file is the entire enforcement
+# point for data isolation: RetrievalTool never accepts a raw index name, only a
+# client_id, and resolves it through here. A client absent for an environment
+# cannot be queried at all. See docs/decisions/0007-data-tools-scope.md.
+#
+# NOTE: APIX today answers analytics questions via NL->SQL directly against
+# Azure SQL (vzw.rep_pivoted) inside the chatbot, and reads weekly per-employee
+# JSON from Blob — it does not yet use Azure AI Search retrieval. The `apix`
+# index below is reserved for future RAG (e.g. coaching playbooks) so that
+# resolve_client_index("apix", env) is defined and data isolation is already in
+# place when retrieval is added. Provision the index with
+# scripts/provision_client_index.py before enabling retrieval.
+
+environments:
+  dev:
+    clients:
+      apix: { index_name: apix-index-dev }
+
+  test:
+    clients:
+      apix: { index_name: apix-index-test }
+
+  prod:
+    clients:
+      apix: { index_name: apix-index-prod }
