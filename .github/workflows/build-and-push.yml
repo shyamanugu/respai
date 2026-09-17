@@ -10,9 +10,7 @@ name: build-and-push
 # (see docs/DEPLOYMENT.md, Part A).
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
+  workflow_dispatch:      # MANUAL ONLY — run from the Actions tab (no auto build on push)
 
 permissions:
   contents: read
@@ -22,6 +20,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false      # build every image even if one fails, so you see which
       matrix:
         include:
           - name: apix-pipeline
