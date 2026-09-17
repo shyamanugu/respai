@@ -2,6 +2,12 @@
 
 Azure **Container Apps** deployment for the whole suite.
 
+> **Two paths:** this folder holds the **automated** bicep (managed identity +
+> role assignments — needs Owner/User-Access-Administrator). If you only have
+> **Contributor** and no Key Vault, follow the **manual, ghcr-based** guide in
+> [`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md) instead — it uses Container App
+> secrets + connection strings and scale-to-zero apps.
+
 ## Files
 
 | File | What it is |

@@ -1,0 +1,61 @@
+name: build-and-push
+
+# Build every service image and push to GitHub Container Registry (ghcr.io).
+# No local Docker or ACR needed — GitHub's runners build for you.
+# Trigger manually (Actions tab → Run workflow) or on push to main.
+#
+# Images land at:  ghcr.io/<owner>/apix-<component>:{latest, <sha>}
+# After the first run, make the packages Private (or public) in your GitHub
+# account → Packages settings, and create a read:packages PAT for Azure to pull
+# (see docs/DEPLOYMENT.md, Part A).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: apix-pipeline
+            dockerfile: usecases/apix/ai_pipeline/Dockerfile
+          - name: apix-chatbot
+            dockerfile: usecases/apix/chatbot/Dockerfile
+          - name: apix-dashboard-api
+            dockerfile: usecases/apix/application/Dockerfile
+          - name: apix-dashboard-web
+            dockerfile: usecases/apix/application/web/Dockerfile
+          - name: apix-ops-backend
+            dockerfile: ops-console/backend/Dockerfile
+          - name: apix-ops-console-web
+            dockerfile: ops-console/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase owner
+        id: owner
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.name }}:latest
+            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.name }}:${{ github.sha }}
