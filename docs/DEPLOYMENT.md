@@ -10,22 +10,32 @@ Apps**, tuned to these constraints:
   its **own Container Apps Environment** (own Log Analytics + Storage) for full
   isolation; only the resource group is shared.
 - **No Key Vault** → secrets live as **Container App secrets** (encrypted at
-  rest); data access uses **connection strings / SQL username+password**.
+  rest). **Azure SQL access is managed-identity only** — the app code has no
+  username/password path (see §2), so this isn't a choice, it's how the code works.
 - **Images in GitHub Container Registry (ghcr.io)**, built **manually** from the
   Actions tab (no local Docker, no auto-build-on-push).
-- **Deploy is manual `az` CLI only, for now.** GitHub Actions CD is deliberately
-  *not* set up — it needs a one-time favor from your Azure AD admin (see Part G)
-  that you don't have to chase yet.
-- **Least cost** → Consumption plan, every app **scales to zero** when idle.
+- **Deploy is manual — PowerShell + `az` CLI only, for now.** GitHub Actions CD
+  is deliberately *not* set up — it needs a one-time favor from your Azure AD
+  admin (see Part H) that you don't have to chase yet.
+- **Least cost, everywhere** → Consumption plan, minimum CPU/memory, every app
+  **scales to zero** when idle. See [`COSTING.md`](COSTING.md) for the full
+  breakdown and estimates.
+- You're reusing an **existing Azure SQL database** (not creating one) and an
+  **existing source Blob** with real transcripts (copied into the new storage,
+  not recreated).
 
-> **Order of operations:** (1) get the app running **locally** first (see
-> [`RUNBOOK.md`](RUNBOOK.md)) — that proves your `.env` values are correct before
-> you touch Azure. (2) Create the Azure resources below for the `dev` tier only.
-> (3) Deploy the Container Apps. Add `qa`/`prod` later by repeating Parts B–D with
-> `TIER=qa`/`TIER=prod` — same resource group, new environment.
+> **The primary artifact is [`infra/azure-setup.ps1`](../infra/azure-setup.ps1)**
+> — open it in VS Code, fill in the placeholders at the top, and run it
+> top-to-bottom (or select-and-F8 one `PART` at a time). This document explains
+> *why* each part exists; the script has the exact runnable commands.
 >
-> Work through this top to bottom. When you hit a snag, tell me the **Part letter
-> + step** and the exact error and I'll refine this doc.
+> **Order of operations:** (1) get the app running **locally** first (see
+> [`RUNBOOK.md`](RUNBOOK.md)) to prove your values are correct. (2) Run the
+> script's Parts 1–10 for `dev`. (3) Do the two manual steps the script can't
+> automate: the SQL grant (Part 11) and the `/data` volume mount (Part 12).
+>
+> Work through this top to bottom. When you hit a snag, tell me the **Part
+> number** and the exact error and I'll refine the script/doc.
 
 ---
 
@@ -41,51 +51,62 @@ collide even though they share the group.
 | Container Apps Environment (**one per tier**) | `cae-apix-<tier>` | `cae-apix-dev` |
 | Log Analytics workspace (**one per tier**) | `log-apix-<tier>` | `log-apix-dev` |
 | Storage account (**one per tier**, no dashes, globally unique) | `stapix<tier>` | `stapixdev` (append digits if taken: `stapixdev01`) |
-| Azure Files share (same literal name in every storage account — no clash, different accounts) | `llmops-data` | `llmops-data` |
-| Container App — APIX dashboard | `ca-apix-<tier>` | `ca-apix-dev` |
+| Azure OpenAI account (**one per tier**) | `oai-apix-<tier>` | `oai-apix-dev` |
+| Azure Files share (LLMOps trace/feedback sink) | `llmops-data` | `llmops-data` |
+| Blob containers (pipeline data lake, same storage account) | `raw`, `denoised-transcripts`, `analysis`, `summary`, `coach-hierarchy` | — |
+| Container App — APIX dashboard API | `ca-apix-<tier>` (internal: `ca-apix-api-<tier>`) | `ca-apix-api-dev` |
+| Container App — APIX dashboard web | `ca-apix-web-<tier>` | `ca-apix-web-dev` |
 | Container App — APIX chatbot | `ca-apix-chatbot-<tier>` | `ca-apix-chatbot-dev` |
 | Container App — LLMOps ops console | `ca-llmops-<tier>` | `ca-llmops-dev` |
 | Container Apps Job — pipeline batch | `caj-apix-pipeline-<tier>` | `caj-apix-pipeline-dev` |
 | ghcr images (**not** per tier — same image, different env vars per tier) | `ghcr.io/<owner>/apix-<component>` | `ghcr.io/shyamanugu/apix-chatbot` |
 | Client git repo | `afni-llmops-platform` | (suggestion — describes it as the platform, not one app) |
+| Azure SQL | **not created here** — your existing server/database | — |
 
 General pattern: **`<abbr>-apix-<tier>`** — Container App `ca-`, environment
-`cae-`, job `caj-`, log `log-`. Storage is the exception (`st` + `apix` + tier,
-no dashes). Images are shared across tiers; only the *deployed tag* and the
-*environment variables* differ per tier (see Part F, "promoting a build").
+`cae-`, job `caj-`, log `log-`, OpenAI `oai-`. Storage is the exception (`st` +
+`apix` + tier, no dashes). Images are shared across tiers; only the *deployed
+tag* and the *environment variables* differ per tier (see Part F).
 
 ---
 
 ## 1. Prerequisites
 
-```bash
+```powershell
 az login
 az account set --subscription "<your-subscription>"
 az extension add --name containerapp --upgrade
 az provider register --namespace Microsoft.App
 az provider register --namespace Microsoft.OperationalInsights
+az provider register --namespace Microsoft.CognitiveServices   # Azure OpenAI
 ```
+Resource group `rg-llmops-apix` is already created — skip that step.
 
-### Variables block — set once per tier, then run everything below unchanged
-This is the only thing that changes when you later add `qa` or `prod`: change
-`TIER` and re-run Parts B–D.
-```bash
-RG=rg-llmops-apix          # shared resource group — create once (Part 1b), reused by every tier
-TIER=dev                  # dev | qa | prod
-LOC=eastus                 # your region
-OWNER=shyamanugu           # ghcr owner (lowercase)
+---
 
-CAE=cae-apix-$TIER
-LAW=log-apix-$TIER
-ST=stapix$TIER            # if this name is taken globally, append digits, e.g. stapixdev01
-SHARE=llmops-data
-```
+## 2. Azure SQL: identity-only, and one hardcoded-name gotcha
 
-### 1b. Create the resource group (once — shared by all tiers)
-Skip if `rg-llmops-apix` already exists.
-```bash
-az group create -n $RG -l $LOC
-```
+Both `chatbot` and `application` connect to Azure SQL exclusively via
+`DefaultAzureCredential` (Azure AD token auth) — there is **no username/password
+code path at all**. That means:
+
+- Each app that talks to SQL (`chatbot`, `dashboard-api`, and the `pipeline`
+  job) needs a **system-assigned managed identity** (the script assigns this —
+  it's a property on *your own* resource, not a role assignment on someone
+  else's, so Contributor is sufficient).
+- That identity then needs a **SQL-side grant** — `CREATE USER ... FROM EXTERNAL
+  PROVIDER` — run in SSMS/Azure Data Studio/the Portal query editor. This is a
+  **SQL permission**, not an Azure RBAC role assignment, so your Contributor-only
+  Azure access doesn't block it; you just need SQL access, which you have. Exact
+  commands are in `azure-setup.ps1` Part 11.
+- **Gotcha:** you said you'd create your own new table and point things at it via
+  `.env`. That works cleanly for the **chatbot** (`REP_TABLE` is a real env var).
+  It does **not** work as-is for the **dashboard** —
+  `application/backend/services/azure_sql_query.py` has `vzw.rep_pivoted`
+  **hardcoded** as a literal string in the SQL text, not read from an env var.
+  Tell me your new table name when you have it and I'll make that one-line code
+  change; until then the dashboard's metrics page will keep querying the
+  original table name.
 
 ---
 
@@ -119,180 +140,43 @@ Part F).
 
 ---
 
-## Part B — Create this tier's Azure resources (repeat per tier)
+## Parts B–L — run `infra/azure-setup.ps1`
 
-Uses the variables block above. Run once with `TIER=dev`; repeat later with
-`TIER=qa` / `TIER=prod` — same resource group, brand-new environment each time
-(full isolation between tiers).
+Everything after image-building is in the script, in dependency order, so
+each part has what the next part needs by the time it runs:
 
-```bash
-# Log Analytics for this tier
-az monitor log-analytics workspace create -g $RG -n $LAW -l $LOC
-LAW_ID=$(az monitor log-analytics workspace show -g $RG -n $LAW --query customerId -o tsv)
-LAW_KEY=$(az monitor log-analytics workspace get-shared-keys -g $RG -n $LAW --query primarySharedKey -o tsv)
+| Script Part | What it does |
+|---|---|
+| 1–2 | Log Analytics (capped at 1 GB/day) + this tier's Container Apps Environment |
+| 3 | Storage account: the LLMOps `/data` sink (Azure Files) **and** the pipeline's Blob data-lake containers, in one account |
+| 4 | `azcopy sync` your real transcripts (`raw`) and org data (`coach-hierarchy`) from your existing source blob into the new storage — fill in the source SAS URLs yourself; I was intentionally not given those details |
+| 5 | *(manual, not scripted)* — create your own new SQL table; note the code-change caveat in §2 above |
+| 6 | Azure OpenAI resource + a `gpt-4o-mini` deployment; captures the endpoint/key automatically for the parts below |
+| 7 | LLMOps ops console app |
+| 8 | Chatbot app (+ managed identity) |
+| 9 | Dashboard API (internal, + managed identity) then dashboard web (external), wired to each other's URLs |
+| 10 | Pipeline batch job (+ managed identity) |
+| 11 | *(manual, run in a SQL client)* — the `CREATE USER ... FROM EXTERNAL PROVIDER` grants for the three identities |
+| 12 | *(manual, one YAML edit per app in VS Code)* — mount the shared `/data` volume on ops-console, chatbot, dashboard-api, and the pipeline job |
 
-# Container Apps Environment for this tier (Consumption — scale to zero)
-az containerapp env create -g $RG -n $CAE -l $LOC \
-  --logs-workspace-id $LAW_ID --logs-workspace-key $LAW_KEY
-
-# Storage account + Azure Files share for this tier's shared /data sink
-az storage account create -g $RG -n $ST -l $LOC --sku Standard_LRS --kind StorageV2
-STKEY=$(az storage account keys list -g $RG -n $ST --query "[0].value" -o tsv)
-az storage share-rm create -g $RG --storage-account $ST -n $SHARE --quota 5
-
-# Register the file share with this tier's environment so its apps can mount it
-az containerapp env storage set -g $RG -n $CAE \
-  --storage-name $SHARE --azure-file-account-name $ST \
-  --azure-file-account-key $STKEY --azure-file-share-name $SHARE --access-mode ReadWrite
-```
-
-Optional cost cap for this tier's logs:
-```bash
-az monitor log-analytics workspace update -g $RG -n $LAW --quota 1   # 1 GB/day
-```
+Run the whole file, or select one `# ===== PART N =====` block in VS Code and
+press **F8** to run just that part.
 
 ---
 
-## Part C — Deploy the Container Apps (repeat per tier)
-
-Each app pulls its image from ghcr. If your packages are **private**, create the
-registry credential on each app right after creating it:
-```bash
-az containerapp registry set -g $RG -n <app> \
-  --server ghcr.io --username $OWNER --password <YOUR_READ_PACKAGES_PAT>
-```
-
-### C.1 Secrets (per app that needs them, per tier)
-Set secrets once per app, then reference them in env vars as `secretref:<name>`.
-**Use different secret values per tier** (e.g. a dev vs prod Azure OpenAI key) —
-the secret *name* can stay the same across tiers since each app instance is
-independent.
-```bash
-az containerapp secret set -g $RG -n <app> --secrets \
-  reasoning-api-key=<...> \
-  blob-conn='<AZURE_BLOB_CONNECTION_STRING>' \
-  sql-password=<...> \
-  chat-jwt-secret=<...> \
-  session-secret=<...>
-```
-
-### C.2 LLMOps ops console — `ca-llmops-$TIER`
-```bash
-az containerapp create -g $RG -n ca-llmops-$TIER --environment $CAE \
-  --image ghcr.io/$OWNER/apix-ops-backend:latest \
-  --ingress external --target-port 8100 \
-  --min-replicas 0 --max-replicas 2 --cpu 0.5 --memory 1.0Gi \
-  --env-vars APIX_ENV=$TIER LLMOPS_TRACER=jsonl \
-    LLMOPS_TRACE_FILE=/data/traces/trace.jsonl \
-    APIX_FEEDBACK_PATH=/data/feedback/feedback.jsonl \
-    APIX_EVAL_HISTORY_PATH=/data/eval/eval_runs.jsonl \
-    OPS_DB_PATH=/data/ops/ops.db OPS_CORS_ORIGINS='*'
-```
-Then mount `/data` — see the **Note on volumes** below (every app that reads/writes
-traces needs this).
-
-### C.3 APIX chatbot — `ca-apix-chatbot-$TIER`
-```bash
-az containerapp create -g $RG -n ca-apix-chatbot-$TIER --environment $CAE \
-  --image ghcr.io/$OWNER/apix-chatbot:latest \
-  --ingress external --target-port 8000 \
-  --min-replicas 0 --max-replicas 2 --cpu 0.5 --memory 1.0Gi \
-  --env-vars APIX_ENV=$TIER LLMOPS_TRACER=jsonl LLMOPS_TRACE_FILE=/data/traces/trace.jsonl \
-    LLMOPS_PLATFORM_ROOT=/app/platform \
-    REASONING_MODEL_ENDPOINT=<...> REASONING_MODEL_DEPLOYMENT=<...> \
-    AZURE_SQL_SERVER=<...> AZURE_SQL_DATABASE=<...> \
-    REASONING_MODEL_APIKEY=secretref:reasoning-api-key \
-    AZURE_SQL_PASSWORD=secretref:sql-password \
-    CHAT_JWT_SECRET=secretref:chat-jwt-secret \
-    AZURE_BLOB_CONNECTION_STRING=secretref:blob-conn
-```
-
-### C.4 APIX dashboard — `ca-apix-$TIER`
-The current build has the dashboard API and React UI as **two images**. Two options:
-- **Now (no code change):** deploy `apix-dashboard-api` (internal) **and**
-  `apix-dashboard-web` (external, nginx) as two apps. Set the web app's
-  `DASHBOARD_API_UPSTREAM` to the api app's internal URL.
-- **Later (I can make this change):** mount the built SPA as static files inside
-  the dashboard FastAPI so it's **one image / one app** — tell me and I'll change
-  it, then this collapses into one `az containerapp create` like C.3.
-
-```bash
-# api (internal)
-az containerapp create -g $RG -n ca-apix-api-$TIER --environment $CAE \
-  --image ghcr.io/$OWNER/apix-dashboard-api:latest \
-  --ingress internal --target-port 8000 --min-replicas 0 --max-replicas 2 --cpu 0.5 --memory 1.0Gi \
-  --env-vars APIX_ENV=$TIER LLMOPS_TRACER=jsonl LLMOPS_TRACE_FILE=/data/traces/trace.jsonl \
-    LLMOPS_PLATFORM_ROOT=/app/platform \
-    REASONING_MODEL_ENDPOINT=<...> REASONING_MODEL_DEPLOYMENT=<...> \
-    APP_AZURE_SQL_SERVER=<...> APP_AZURE_SQL_DATABASE=<...> \
-    CHAT_API_BASE_URL=https://<chatbot-fqdn> \
-    APIX_SPA_ORIGINS=https://<dashboard-web-fqdn> \
-    REASONING_MODEL_APIKEY=secretref:reasoning-api-key \
-    AZURE_SQL_PASSWORD=secretref:sql-password \
-    CHAT_JWT_SECRET=secretref:chat-jwt-secret \
-    APIX_SESSION_SECRET=secretref:session-secret \
-    AZURE_BLOB_CONNECTION_STRING=secretref:blob-conn
-# web (external, nginx -> proxies /api to the api app)
-az containerapp create -g $RG -n ca-apix-web-$TIER --environment $CAE \
-  --image ghcr.io/$OWNER/apix-dashboard-web:latest \
-  --ingress external --target-port 80 --min-replicas 0 --max-replicas 2 --cpu 0.25 --memory 0.5Gi \
-  --env-vars DASHBOARD_API_UPSTREAM=https://<ca-apix-api-TIER-internal-fqdn>
-```
-
-### Note on mounting the `/data` volume
-`az containerapp create` can't attach environment storage inline in every CLI
-version. After creating an app that needs `/data` (ops console, chatbot,
-dashboard-api), export, edit, and re-apply its YAML:
-```bash
-az containerapp show -g $RG -n <app> -o yaml > app.yaml
-# under properties.template add:
-#   volumes:
-#     - name: data
-#       storageType: AzureFile
-#       storageName: llmops-data
-#   containers[0].volumeMounts:
-#     - volumeName: data
-#       mountPath: /data
-az containerapp update -g $RG -n <app> --yaml app.yaml
-```
-
----
-
-## Part D — Run the pipeline (batch, repeat per tier)
-
-Create it as a **manual Job** (least cost — runs only when triggered):
-```bash
-az containerapp job create -g $RG -n caj-apix-pipeline-$TIER --environment $CAE \
-  --trigger-type Manual --replica-timeout 3600 --replica-retry-limit 1 \
-  --image ghcr.io/$OWNER/apix-pipeline:latest --cpu 1.0 --memory 2.0Gi \
-  --env-vars APIX_ENV=$TIER LLMOPS_TRACER=jsonl LLMOPS_TRACE_FILE=/data/traces/trace.jsonl \
-    LLMOPS_PLATFORM_ROOT=/app/platform \
-    SALES_STORAGE_ACCOUNT_NAME=<...> SALES_STORAGE_ACCOUNT_KEY=secretref:... \
-    REASONING_MODEL_ENDPOINT=<...> REASONING_MODEL_DEPLOYMENT=<...> \
-    REASONING_MODEL_APIKEY=secretref:reasoning-api-key
-# add the /data volume via the YAML method above, then start a run:
-az containerapp job start -g $RG -n caj-apix-pipeline-$TIER \
-  --args "--mode" "telesales" "--date" "2025-08-28"
-```
-Attach the same tier's `llmops-data` share so its traces show up in that tier's
-ops console.
-
----
-
-## Part E — Wire it together & verify (per tier)
+## Part E — Verify
 
 **Values that MUST match across the apps in the same tier** (or the data
-contract / chat auth break): `REASONING_MODEL_*`, `AZURE_BLOB_*`, the Azure SQL
-server/db, and `CHAT_JWT_SECRET`.
+contract / chat auth breaks): `REASONING_MODEL_*` (the script sets these
+identically from the one OpenAI deployment), the Azure SQL server/database, and
+`CHAT_JWT_SECRET`.
 
-1. Get each app's URL: `az containerapp show -g $RG -n <app> --query properties.configuration.ingress.fqdn -o tsv`.
-2. Set the dashboard's `CHAT_API_BASE_URL` to that tier's chatbot FQDN, and (for
-   SSO later) register `https://<dashboard>/api/auth/callback` in the Entra app —
-   you'll need one redirect URI per tier if dev/qa/prod each have SSO.
-3. Verify:
-   - `https://<ca-llmops-$TIER>/healthz` → ops backend OK.
-   - `https://<ca-apix-chatbot-$TIER>/health` → chatbot OK.
-   - Run the pipeline job → open that tier's ops console → traces/cost appear.
+1. `Invoke-RestMethod https://<ca-llmops-dev-fqdn>/healthz` → ops backend OK.
+2. `Invoke-RestMethod https://<ca-apix-chatbot-dev-fqdn>/health` → chatbot OK.
+3. Run the pipeline job → open the ops console → traces/cost appear.
+4. For SSO later, register `https://<dashboard-web-fqdn>/api/auth/callback` in
+   the Entra app registration — one redirect URI per tier if dev/qa/prod each
+   get SSO.
 
 ---
 
@@ -300,26 +184,24 @@ server/db, and `CHAT_JWT_SECRET`.
 
 Images are shared across tiers — you don't rebuild for qa/prod, you **redeploy
 the same tag** you already verified in dev:
-```bash
-az containerapp update -g $RG -n ca-apix-chatbot-qa \
-  --image ghcr.io/$OWNER/apix-chatbot:<the-sha-you-verified-in-dev>
+```powershell
+az containerapp update -g rg-llmops-apix -n ca-apix-chatbot-qa `
+  --image ghcr.io/shyamanugu/apix-chatbot:<the-sha-you-verified-in-dev>
 ```
-Keep each tier's `.env` values (endpoints, SQL server, secrets) separate — only
-the image tag is promoted, not the config.
+Keep each tier's config separate (endpoints, SQL server, secrets, its own
+`oai-apix-<tier>` deployment) — only the image tag is promoted, not the config.
+Re-run `azure-setup.ps1` with `$Tier = "qa"` to stand up that tier's resources
+first.
 
 ---
 
-## Part G — Cost controls (least resources)
+## Part G — Cost controls
 
-- `--min-replicas 0` on every app → **scale to zero**; you pay compute only while
-  requests are in flight. Idle cost per tier ≈ its Storage + Log Analytics (both
-  minimal) plus the Container Apps Environment (no separate charge on
-  Consumption beyond what apps use).
-- Small sizes: `--cpu 0.25–0.5 --memory 0.5–1.0Gi`.
-- Pipeline as a **Job**, not an always-on app.
-- **Don't create `qa`/`prod` until you actually need them** — Part B is designed
-  to be run again later with `TIER=qa`; there's no cost for tiers you haven't
-  created yet.
+See [`COSTING.md`](COSTING.md) for the full breakdown. Short version: every app
+scales to zero, sizes are the minimum Consumption tier, Log Analytics is capped,
+and nothing here should cost more than a few dollars a month at demo-level usage
+— the only cost that scales with something other than idle-vs-active is the
+real transcript data volume you copy into storage.
 
 ---
 
@@ -331,15 +213,15 @@ Administrator) — and GitHub Actions needs *some* Azure identity to authenticat
 as. This isn't a workaround-able limitation; it's how Azure RBAC works.
 
 When you're ready, ask your Azure AD admin to do this **once**:
-```bash
+```powershell
 # admin runs this (needs Owner/UAA on the RG) — you cannot run it yourself:
-az ad sp create-for-rbac --name "sp-apix-cd" --role Contributor \
-  --scopes /subscriptions/<sub>/resourceGroups/rg-llmops-apix \
+az ad sp create-for-rbac --name "sp-apix-cd" --role Contributor `
+  --scopes /subscriptions/<sub>/resourceGroups/rg-llmops-apix `
   --sdk-auth
 ```
 That JSON output becomes the `AZURE_CREDENTIALS` GitHub secret. After that, a
 `deploy.yml` workflow can run `az containerapp update --image ...` per app,
-exactly like the manual commands in Parts C/D, but from CI. Until then, keep
+exactly like the manual commands in the script, but from CI. Until then, keep
 deploying manually — it works fine and needs nothing from anyone else.
 
 ---
@@ -348,13 +230,14 @@ deploying manually — it works fine and needs nothing from anyone else.
 
 | Secret | Used by |
 |---|---|
-| `reasoning-api-key` (`REASONING_MODEL_APIKEY`) | all apps + pipeline |
-| `blob-conn` (`AZURE_BLOB_CONNECTION_STRING`) | dashboard, chatbot |
-| `sql-password` (`AZURE_SQL_PASSWORD`) | dashboard, chatbot |
+| `reasoning-api-key` (`REASONING_MODEL_APIKEY`) | all apps + pipeline (auto-captured from the OpenAI deployment in Part 6) |
+| `blob-conn` (`AZURE_BLOB_CONNECTION_STRING`) | dashboard, chatbot (auto-captured from the storage account in Part 3) |
 | `chat-jwt-secret` (`CHAT_JWT_SECRET`) | dashboard + chatbot (**must match**, per tier) |
 | `session-secret` (`APIX_SESSION_SECRET`) | dashboard |
-| storage account key (`SALES_STORAGE_ACCOUNT_KEY`) | pipeline |
+| storage account key (`SALES_STORAGE_ACCOUNT_KEY` / for azcopy SAS generation) | pipeline, Part 4 |
 | ghcr PAT | registry pull (if packages are private) |
 
-Migrate these to Key Vault + managed identity once you have (or a favor from
-someone with) `User Access Administrator` on the resource group.
+**No SQL secret** — SQL access is managed-identity + a SQL-side grant, not a
+Container App secret (see §2). Migrate the secrets above to Key Vault once you
+have (or a favor from someone with) `User Access Administrator` on the resource
+group.
