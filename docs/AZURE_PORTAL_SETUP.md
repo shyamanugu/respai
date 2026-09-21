@@ -166,11 +166,28 @@ up with zero code or `.env` changes — `AZURE_SQL_SERVER` /
 | `AZURE_BLOB_CONNECTION_STRING` | §1.2 step 6 |
 | `SALES_STORAGE_ACCOUNT_NAME` | `stllmopsapixdev` |
 | `SALES_STORAGE_ACCOUNT_KEY` | §1.2 step 6 (key1 alone) |
-| `AZURE_SQL_SERVER` / `APP_AZURE_SQL_SERVER` | your existing server, e.g. `<server>.database.windows.net` |
+| `AZURE_BLOB_CONTAINER` | `summary` — **override the code's default `weekly-summary`**, which you didn't create. Must equal `SALES_SUMMARY_CONTAINER` so the app reads what the pipeline writes. |
+| `INDEX_BLOB_PATH` / `REPORTS_PREFIX` | **leave at defaults** — legacy fallback placeholders, not read by the real week-discovery path. Nothing to set here. |
+| `AZURE_SQL_SERVER` / `APP_AZURE_SQL_SERVER` | your existing server, e.g. `<server>.database.windows.net` — **set both**, chatbot's `AZURE_SQL_SERVER` does **not** fall back to `APP_AZURE_SQL_SERVER` (only `AI_PIPELINE_AZURE_SQL_*` does) |
 | `AZURE_SQL_DATABASE` / `APP_AZURE_SQL_DATABASE` | your existing database name |
 | `REP_TABLE` | your new table's `[schema].[name]` once you create it (chatbot only — see the dashboard caveat below) |
-| `CHAT_JWT_SECRET` | any long random string you make up |
-| `APIX_SESSION_SECRET` | any long random string you make up |
+| `CHAT_JWT_SECRET` | any long random string — signs the token the dashboard mints for the browser to call the chatbot directly; set a placeholder even if you bypass real verification below |
+| `APIX_SESSION_SECRET` | any long random string — signs your **login session cookie**. Needed either way (password login *or* SSO); not an SSO on/off switch |
+| `ENTRA_TENANT_ID` / `CLIENT_ID` / `CLIENT_SECRET` / `REDIRECT_URI` | **leave all blank.** Registering an Entra app typically needs Azure AD tenant permissions, separate from RG Contributor — not worth chasing now. The password-login endpoint works fully independently of these. |
+| `CHAT_AUTH_DISABLED` (chatbot only) | `true` — skips real JWT verification on the chatbot side for local dev. Still set `CHAT_JWT_SECRET` above; the dashboard's mint function returns an empty token if that's unset entirely, which breaks the chat widget's request format even with verification disabled. |
+| `VITE_DASHBOARD_API_URL`, `VITE_CHAT_API_URL`, `VITE_OPS_API_URL` | **leave all blank.** These aren't Azure values — they belong in a separate small `.env` inside `application/web/` and `ops-console/web/` (Vite loads its own, not this file), and each dev server already proxies the relative default to the right backend port automatically. `VITE_CHAT_API_URL` specifically is unused dead code — the chat base URL actually comes from the server's `/api/auth/chat-token` response, not a build-time var. |
+
+**Before you can log in at all:** `application/auth.db` starts empty. Create one
+local user (do this from the `application` folder so the `backend` package
+resolves):
+```bash
+cd usecases/apix/application
+python -c "from backend.auth.local_auth import add_user; add_user('demo', 'ChangeMe123!', role='manager')"
+```
+Use `role='manager'`, not `'coach'` — a manager/non-coach principal with no
+assigned `coach_ids` is treated as a **superuser** by the RBAC logic and sees
+every employee. `'coach'` would only see employees whose `CoachID` happens to
+match your username, which won't match anything real.
 
 **Reminder (unchanged from before):** `application/backend/services/azure_sql_query.py`
 hardcodes `vzw.rep_pivoted` — if your new table has a different name, the
