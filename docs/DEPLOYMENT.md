@@ -45,28 +45,38 @@ Apps**, tuned to these constraints:
 suffixed with the tier (`dev` / `qa` / `prod`) so dev, qa, and prod resources never
 collide even though they share the group.
 
+**Workload token is `llmops-apix`, not bare `apix`** — this is the LLMOps
+platform's APIX deployment, so every resource name says so.
+
 | Thing | Pattern | Example (`dev`) |
 |---|---|---|
 | Resource group (shared, all tiers) | `rg-llmops-apix` | `rg-llmops-apix` |
-| Container Apps Environment (**one per tier**) | `cae-apix-<tier>` | `cae-apix-dev` |
-| Log Analytics workspace (**one per tier**) | `log-apix-<tier>` | `log-apix-dev` |
-| Storage account (**one per tier**, no dashes, globally unique) | `stapix<tier>` | `stapixdev` (append digits if taken: `stapixdev01`) |
-| Azure OpenAI account (**one per tier**) | `oai-apix-<tier>` | `oai-apix-dev` |
+| Container Apps Environment (**one per tier**) | `cae-llmops-apix-<tier>` | `cae-llmops-apix-dev` |
+| Log Analytics workspace (**one per tier**) | `log-llmops-apix-<tier>` | `log-llmops-apix-dev` |
+| Storage account (**one per tier**, no dashes, globally unique) | `stllmopsapix<tier>` | `stllmopsapixdev` (append digits if taken) |
+| Azure OpenAI account (**one per tier**) | `oai-llmops-apix-<tier>` | `oai-llmops-apix-dev` |
 | Azure Files share (LLMOps trace/feedback sink) | `llmops-data` | `llmops-data` |
 | Blob containers (pipeline data lake, same storage account) | `raw`, `denoised-transcripts`, `analysis`, `summary`, `coach-hierarchy` | — |
-| Container App — APIX dashboard API | `ca-apix-<tier>` (internal: `ca-apix-api-<tier>`) | `ca-apix-api-dev` |
-| Container App — APIX dashboard web | `ca-apix-web-<tier>` | `ca-apix-web-dev` |
-| Container App — APIX chatbot | `ca-apix-chatbot-<tier>` | `ca-apix-chatbot-dev` |
-| Container App — LLMOps ops console | `ca-llmops-<tier>` | `ca-llmops-dev` |
-| Container Apps Job — pipeline batch | `caj-apix-pipeline-<tier>` | `caj-apix-pipeline-dev` |
-| ghcr images (**not** per tier — same image, different env vars per tier) | `ghcr.io/<owner>/apix-<component>` | `ghcr.io/shyamanugu/apix-chatbot` |
+| Container App — **APIX combined** (ai_pipeline + application + chatbot, one image) | `ca-llmops-apix-<tier>` | `ca-llmops-apix-dev` |
+| Container App — LLMOps ops console (separate — not "APIX") | `ca-llmops-<tier>` | `ca-llmops-dev` |
+| Container Apps Job — pipeline (optional, scheduled; reuses the combined image) | `caj-llmops-apix-pipeline-<tier>` | `caj-llmops-apix-pipeline-dev` |
+| ghcr images (**not** per tier — same image, different env vars per tier) | `ghcr.io/<owner>/apix-<component>` | `ghcr.io/shyamanugu/apix-combined` |
 | Client git repo | `afni-llmops-platform` | (suggestion — describes it as the platform, not one app) |
 | Azure SQL | **not created here** — your existing server/database | — |
 
-General pattern: **`<abbr>-apix-<tier>`** — Container App `ca-`, environment
-`cae-`, job `caj-`, log `log-`, OpenAI `oai-`. Storage is the exception (`st` +
-`apix` + tier, no dashes). Images are shared across tiers; only the *deployed
-tag* and the *environment variables* differ per tier (see Part F).
+General pattern: **`<abbr>-llmops-apix-<tier>`** — Container App `ca-`,
+environment `cae-`, job `caj-`, log `log-`, OpenAI `oai-`. Storage is the
+exception (`st` + `llmopsapix` + tier, no dashes). Images are shared across
+tiers; only the *deployed tag* and the *environment variables* differ per tier
+(see Part F).
+
+**Why one combined app instead of three.** APIX is `ai_pipeline` +
+`application` + `chatbot` deployed as **one Container App, one image**, with
+nginx routing `/`, `/api/*`, `/chatbot/*`, `/pipeline/*` to each — see
+[`usecases/apix/combined/README.md`](../usecases/apix/combined/README.md). Each
+app keeps its **own Python venv inside that one image** — merging their frozen
+dependency sets into one environment hit a real, confirmed conflict
+(`aiohappyeyeballs==2.6.1` vs `==2.6.2`), so this isn't a style choice.
 
 ---
 
@@ -90,15 +100,16 @@ Both `chatbot` and `application` connect to Azure SQL exclusively via
 `DefaultAzureCredential` (Azure AD token auth) — there is **no username/password
 code path at all**. That means:
 
-- Each app that talks to SQL (`chatbot`, `dashboard-api`, and the `pipeline`
-  job) needs a **system-assigned managed identity** (the script assigns this —
-  it's a property on *your own* resource, not a role assignment on someone
-  else's, so Contributor is sufficient).
+- The combined app needs **one system-assigned managed identity** (covers
+  `chatbot` + `dashboard-api` + `pipeline`, since they're all in the same
+  container now) — the script assigns this; it's a property on *your own*
+  resource, not a role assignment on someone else's, so Contributor is
+  sufficient. The optional scheduled pipeline job (Part 9) gets its own.
 - That identity then needs a **SQL-side grant** — `CREATE USER ... FROM EXTERNAL
   PROVIDER` — run in SSMS/Azure Data Studio/the Portal query editor. This is a
   **SQL permission**, not an Azure RBAC role assignment, so your Contributor-only
   Azure access doesn't block it; you just need SQL access, which you have. Exact
-  commands are in `azure-setup.ps1` Part 11.
+  commands are in `azure-setup.ps1` Part 10.
 - **Gotcha:** you said you'd create your own new table and point things at it via
   `.env`. That works cleanly for the **chatbot** (`REP_TABLE` is a real env var).
   It does **not** work as-is for the **dashboard** —
@@ -140,7 +151,7 @@ Part F).
 
 ---
 
-## Parts B–L — run `infra/azure-setup.ps1`
+## Parts 1–11 — run `infra/azure-setup.ps1`
 
 Everything after image-building is in the script, in dependency order, so
 each part has what the next part needs by the time it runs:
@@ -153,11 +164,10 @@ each part has what the next part needs by the time it runs:
 | 5 | *(manual, not scripted)* — create your own new SQL table; note the code-change caveat in §2 above |
 | 6 | Azure OpenAI resource + a `gpt-4o-mini` deployment; captures the endpoint/key automatically for the parts below |
 | 7 | LLMOps ops console app |
-| 8 | Chatbot app (+ managed identity) |
-| 9 | Dashboard API (internal, + managed identity) then dashboard web (external), wired to each other's URLs |
-| 10 | Pipeline batch job (+ managed identity) |
-| 11 | *(manual, run in a SQL client)* — the `CREATE USER ... FROM EXTERNAL PROVIDER` grants for the three identities |
-| 12 | *(manual, one YAML edit per app in VS Code)* — mount the shared `/data` volume on ops-console, chatbot, dashboard-api, and the pipeline job |
+| 8 | **The combined APIX app** (`ca-llmops-apix-<tier>` — ai_pipeline + application + chatbot, one image, + managed identity) |
+| 9 | *(optional)* a scheduled Container Apps Job reusing the **same** combined image, for automated weekly pipeline runs in addition to the always-on app's `/pipeline/run` |
+| 10 | *(manual, run in a SQL client)* — the `CREATE USER ... FROM EXTERNAL PROVIDER` grant(s) |
+| 11 | *(manual, one YAML edit per app in VS Code)* — mount the shared `/data` volume on ops-console and the combined app (and the optional job) |
 
 Run the whole file, or select one `# ===== PART N =====` block in VS Code and
 press **F8** to run just that part.
@@ -166,17 +176,21 @@ press **F8** to run just that part.
 
 ## Part E — Verify
 
-**Values that MUST match across the apps in the same tier** (or the data
-contract / chat auth breaks): `REASONING_MODEL_*` (the script sets these
-identically from the one OpenAI deployment), the Azure SQL server/database, and
-`CHAT_JWT_SECRET`.
+**Values that MUST match** (or the data contract breaks): `REASONING_MODEL_*`
+(the script sets these identically from the one OpenAI deployment) and the
+Azure SQL server/database. `CHAT_JWT_SECRET`/CORS wiring between the dashboard
+and chatbot is no longer a cross-app concern — both are behind the same nginx
+now, same origin.
 
 1. `Invoke-RestMethod https://<ca-llmops-dev-fqdn>/healthz` → ops backend OK.
-2. `Invoke-RestMethod https://<ca-apix-chatbot-dev-fqdn>/health` → chatbot OK.
-3. Run the pipeline job → open the ops console → traces/cost appear.
-4. For SSO later, register `https://<dashboard-web-fqdn>/api/auth/callback` in
-   the Entra app registration — one redirect URI per tier if dev/qa/prod each
-   get SSO.
+2. `Invoke-RestMethod https://<ca-llmops-apix-dev-fqdn>/health` → combined app's nginx OK.
+3. `Invoke-RestMethod https://<ca-llmops-apix-dev-fqdn>/api/health` → dashboard OK.
+4. `Invoke-RestMethod https://<ca-llmops-apix-dev-fqdn>/chatbot/health` → chatbot OK.
+5. Trigger the pipeline (`POST /pipeline/run` with the bearer token, or the
+   optional job) → open the ops console → traces/cost appear.
+6. For SSO later, register `https://<ca-llmops-apix-dev-fqdn>/api/auth/callback`
+   in the Entra app registration — one redirect URI per tier if dev/qa/prod
+   each get SSO.
 
 ---
 
@@ -185,13 +199,13 @@ identically from the one OpenAI deployment), the Azure SQL server/database, and
 Images are shared across tiers — you don't rebuild for qa/prod, you **redeploy
 the same tag** you already verified in dev:
 ```powershell
-az containerapp update -g rg-llmops-apix -n ca-apix-chatbot-qa `
-  --image ghcr.io/shyamanugu/apix-chatbot:<the-sha-you-verified-in-dev>
+az containerapp update -g rg-llmops-apix -n ca-llmops-apix-qa `
+  --image ghcr.io/shyamanugu/apix-combined:<the-sha-you-verified-in-dev>
 ```
 Keep each tier's config separate (endpoints, SQL server, secrets, its own
-`oai-apix-<tier>` deployment) — only the image tag is promoted, not the config.
-Re-run `azure-setup.ps1` with `$Tier = "qa"` to stand up that tier's resources
-first.
+`oai-llmops-apix-<tier>` deployment) — only the image tag is promoted, not the
+config. Re-run `azure-setup.ps1` with `$Tier = "qa"` to stand up that tier's
+resources first.
 
 ---
 
@@ -230,11 +244,12 @@ deploying manually — it works fine and needs nothing from anyone else.
 
 | Secret | Used by |
 |---|---|
-| `reasoning-api-key` (`REASONING_MODEL_APIKEY`) | all apps + pipeline (auto-captured from the OpenAI deployment in Part 6) |
-| `blob-conn` (`AZURE_BLOB_CONNECTION_STRING`) | dashboard, chatbot (auto-captured from the storage account in Part 3) |
-| `chat-jwt-secret` (`CHAT_JWT_SECRET`) | dashboard + chatbot (**must match**, per tier) |
-| `session-secret` (`APIX_SESSION_SECRET`) | dashboard |
-| storage account key (`SALES_STORAGE_ACCOUNT_KEY` / for azcopy SAS generation) | pipeline, Part 4 |
+| `reasoning-api-key` (`REASONING_MODEL_APIKEY`) | the combined app (auto-captured from the OpenAI deployment in Part 6) |
+| `blob-conn` (`AZURE_BLOB_CONNECTION_STRING`) | the combined app (auto-captured from the storage account in Part 3) |
+| `chat-jwt-secret` (`CHAT_JWT_SECRET`) | the combined app (dashboard mints, chatbot verifies — same process group now, still worth keeping as a named secret) |
+| `session-secret` (`APIX_SESSION_SECRET`) | the combined app (dashboard cookie signing) |
+| `pipeline-trigger-token` (`PIPELINE_TRIGGER_TOKEN`) | the combined app — protects `/pipeline/run` on the public ingress; fails closed if unset |
+| storage account key (`SALES_STORAGE_ACCOUNT_KEY` / for azcopy SAS generation) | the combined app + Part 4 |
 | ghcr PAT | registry pull (if packages are private) |
 
 **No SQL secret** — SQL access is managed-identity + a SQL-side grant, not a

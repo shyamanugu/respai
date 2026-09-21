@@ -1,43 +1,27 @@
-# Local all-up for the APIX suite + LLMOps ops console. One .env drives everything;
-# a shared ./data volume is the trace/feedback sink the ops console reads.
+# Local all-up for LLMOps + APIX. One .env drives everything; a shared ./data
+# volume is the trace/feedback sink the ops console reads.
 #
 #   cp .env.example .env   # fill in Azure creds
 #   docker compose up --build            # long-running services
 #   docker compose --profile jobs run --rm pipeline --mode telesales --date 2025-08-28
 #
 # All images build from the repo root (context: .) so platform/ is included.
+# APIX (ai_pipeline + application + chatbot) is ONE service/image — see
+# usecases/apix/combined/README.md for why each keeps its own Python venv
+# inside that one image, and docs/DEPLOYMENT.md for the Azure equivalent
+# (ca-llmops-apix-<tier>).
 services:
-  dashboard-api:
-    build: { context: ., dockerfile: usecases/apix/application/Dockerfile }
+  apix:
+    build: { context: ., dockerfile: usecases/apix/combined/Dockerfile }
     env_file: .env
     environment:
-      - PORT=8000
+      - APIX_ENV=dev
+      - LLMOPS_TRACER=jsonl
       - LLMOPS_TRACE_FILE=/data/traces/trace.jsonl
       - APIX_FEEDBACK_PATH=/data/feedback/feedback.jsonl
-      - APIX_SPA_ORIGINS=http://localhost:5173
+      - CHAT_API_BASE_URL=/chatbot        # relative — same-origin behind nginx
       - APIX_COOKIE_SECURE=false
-    ports: ["8000:8000"]
-    volumes: ["./data:/data"]
-
-  dashboard-web:
-    build:
-      context: .
-      dockerfile: usecases/apix/application/web/Dockerfile
-      args:
-        VITE_DASHBOARD_API_URL: ""            # same-origin (nginx proxies /api)
-        VITE_CHAT_API_URL: "http://localhost:8001"
-    environment:
-      - DASHBOARD_API_UPSTREAM=http://dashboard-api:8000
-    ports: ["5173:80"]
-    depends_on: [dashboard-api]
-
-  chatbot:
-    build: { context: ., dockerfile: usecases/apix/chatbot/Dockerfile }
-    env_file: .env
-    environment:
-      - PORT=8000
-      - LLMOPS_TRACE_FILE=/data/traces/trace.jsonl
-    ports: ["8001:8000"]
+    ports: ["8080:8080"]                  # dashboard: /  chatbot: /chatbot/*  pipeline: /pipeline/*
     volumes: ["./data:/data"]
 
   ops-backend:
@@ -49,7 +33,7 @@ services:
       - APIX_FEEDBACK_PATH=/data/feedback/feedback.jsonl
       - APIX_EVAL_HISTORY_PATH=/data/eval/eval_runs.jsonl
       - OPS_DB_PATH=/data/ops/ops.db
-      - OPS_CORS_ORIGINS=http://localhost:8080
+      - OPS_CORS_ORIGINS=http://localhost:8081
     ports: ["8100:8100"]
     volumes: ["./data:/data"]
 
@@ -61,13 +45,17 @@ services:
         VITE_OPS_API_URL: ""                  # same-origin (nginx proxies /ops)
     environment:
       - OPS_API_UPSTREAM=http://ops-backend:8100
-    ports: ["8080:80"]
+    ports: ["8081:80"]
     depends_on: [ops-backend]
 
   # ── Jobs (run on demand: docker compose --profile jobs run --rm <svc> ...) ──
+  # Both reuse the SAME combined image (its own per-app venv), bypassing
+  # nginx/supervisord and invoking the CLI directly — no separate image needed.
   pipeline:
-    build: { context: ., dockerfile: usecases/apix/ai_pipeline/Dockerfile }
+    build: { context: ., dockerfile: usecases/apix/combined/Dockerfile }
     env_file: .env
+    entrypoint: ["/opt/venv-pipeline/bin/python", "-m", "ai_pipeline.main"]
+    working_dir: /app/ai_pipeline
     environment:
       - LLMOPS_TRACE_FILE=/data/traces/trace.jsonl
       - APIX_FEEDBACK_PATH=/data/feedback/feedback.jsonl
@@ -75,8 +63,9 @@ services:
     profiles: ["jobs"]
 
   chatbot-ingest:
-    build: { context: ., dockerfile: usecases/apix/chatbot/Dockerfile }
+    build: { context: ., dockerfile: usecases/apix/combined/Dockerfile }
     env_file: .env
-    command: ["python", "-m", "chatbot.ingestion"]
+    entrypoint: ["/opt/venv-chatbot/bin/python", "-m", "chatbot.ingestion"]
+    working_dir: /app/chatbot
     volumes: ["./data:/data"]
     profiles: ["jobs"]
