@@ -4,6 +4,9 @@
 !.env.example
 *.pem
 
+# ---- Personal / local-only notes (never for the shared repo) ----
+*.local.md
+
 # ---- Python ----
 __pycache__/
 *.py[cod]
