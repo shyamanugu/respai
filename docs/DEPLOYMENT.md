@@ -91,6 +91,17 @@ az group create -n $RG -l $LOC
 
 ## Part A — Build & push images to ghcr.io (once per code change, not per tier)
 
+> **When the Portal (or `az containerapp create`) asks how to get your image —
+> "Azure Container Registry" vs "Docker Hub or other registries" vs building
+> from source — pick "Docker Hub or other registries" and point it at
+> `ghcr.io`.** Don't use ACR's automatic build/deploy flow or a "build from
+> source" option: they typically try to grant the app's identity a role on the
+> registry, which needs Owner/User Access Administrator — Contributor can't do
+> that. They'd also bypass the Dockerfiles already in this repo (ODBC driver
+> install, `platform/` copy, the React multi-stage builds), which a source-based
+> auto-build doesn't know about. ghcr avoids the role-assignment step entirely —
+> pull auth is a plain username/PAT set as a Container App secret.
+
 1. Push this repo to GitHub (already done: `github.com/shyamanugu/respai`) or your
    client repo, once transferred (see the separate transfer notes I gave you).
 2. GitHub → **Actions → build-and-push → Run workflow** (branch `main`). It's
